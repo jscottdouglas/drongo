@@ -1593,6 +1593,8 @@ public enum ScriptType {
             return (32 + 4 + 1 + ((double)66 / WITNESS_SCALE_FACTOR) + 4);
         } else if(P2A.equals(this)) {
             return 32 + 4 + 1 + 4;
+        } else if(MWEB.equals(this)) {
+            return 0;
         } else if(Arrays.asList(WITNESS_TYPES).contains(this)) {
             //Return length of spending input with 75% discount to script size
             return (32 + 4 + 1 + ((double)107 / WITNESS_SCALE_FACTOR) + 4);
