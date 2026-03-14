@@ -3,9 +3,9 @@ package com.sparrowwallet.drongo;
 import java.util.Locale;
 
 public enum Network {
-    MAINNET("mainnet", "Mainnet", "mainnet", 0, "1", 5, "3", "bc", "sp", ExtendedKey.Header.xprv, ExtendedKey.Header.xpub, 128, 8332),
-    TESTNET("testnet", "Testnet3", "testnet3", 111, "mn", 196, "2", "tb", "tsp", ExtendedKey.Header.tprv, ExtendedKey.Header.tpub, 239, 18332),
-    REGTEST("regtest", "Regtest", "regtest", 111, "mn", 196, "2", "bcrt", "sprt", ExtendedKey.Header.tprv, ExtendedKey.Header.tpub, 239, 18443),
+    MAINNET("mainnet", "Mainnet", "mainnet", 48, "L", 50, "M", "ltc", "ltcsp", ExtendedKey.Header.xprv, ExtendedKey.Header.xpub, 128, 9332),
+    TESTNET("testnet", "Testnet", "testnet", 111, "mn", 58, "Q", "tltc", "tltcsp", ExtendedKey.Header.tprv, ExtendedKey.Header.tpub, 191, 19332),
+    REGTEST("regtest", "Regtest", "regtest", 111, "mn", 196, "2", "rltc", "rltcsp", ExtendedKey.Header.tprv, ExtendedKey.Header.tpub, 239, 19443),
     SIGNET("signet", "Signet", "signet", 111, "mn", 196, "2", "tb", "tsp", ExtendedKey.Header.tprv, ExtendedKey.Header.tpub, 239, 38332),
     TESTNET4("testnet4", "Testnet4", "testnet4", 111, "mn", 196, "2", "tb", "tsp", ExtendedKey.Header.tprv, ExtendedKey.Header.tpub, 239, 48332);
 
