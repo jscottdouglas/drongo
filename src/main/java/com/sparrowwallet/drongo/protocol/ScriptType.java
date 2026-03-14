@@ -17,7 +17,7 @@ import static com.sparrowwallet.drongo.protocol.ScriptOpCodes.*;
 import static com.sparrowwallet.drongo.protocol.Transaction.WITNESS_SCALE_FACTOR;
 
 public enum ScriptType {
-    P2PK("P2PK", "Legacy (P2PK)", "m/44'/0'/0'") {
+    P2PK("P2PK", "Legacy (P2PK)", "m/44'/2'/0'") {
         @Override
         public Address getAddress(byte[] pubKey) {
             return new P2PKAddress(pubKey);
@@ -136,7 +136,7 @@ public enum ScriptType {
             return List.of(SINGLE);
         }
     },
-    P2PKH("P2PKH", "Legacy (P2PKH)", "m/44'/0'/0'") {
+    P2PKH("P2PKH", "Legacy (P2PKH)", "m/44'/2'/0'") {
         @Override
         public Address getAddress(byte[] pubKeyHash) {
             return new P2PKHAddress(pubKeyHash);
@@ -254,7 +254,7 @@ public enum ScriptType {
             return List.of(SINGLE);
         }
     },
-    MULTISIG("Bare Multisig", "Bare Multisig", "m/44'/0'/0'") {
+    MULTISIG("Bare Multisig", "Bare Multisig", "m/44'/2'/0'") {
         @Override
         public Address getAddress(byte[] bytes) {
             throw new ProtocolException("No single address for multisig script type");
@@ -575,7 +575,7 @@ public enum ScriptType {
             return List.of(MULTI);
         }
     },
-    P2SH_P2WPKH("P2SH-P2WPKH", "Nested Segwit (P2SH-P2WPKH)", "m/49'/0'/0'") {
+    P2SH_P2WPKH("P2SH-P2WPKH", "Nested Segwit (P2SH-P2WPKH)", "m/49'/2'/0'") {
         @Override
         public Address getAddress(byte[] scriptHash) {
             return P2SH.getAddress(scriptHash);
@@ -683,7 +683,7 @@ public enum ScriptType {
             return List.of(SINGLE);
         }
     },
-    P2SH_P2WSH("P2SH-P2WSH", "Nested Segwit (P2SH-P2WSH)", "m/48'/0'/0'/1'") {
+    P2SH_P2WSH("P2SH-P2WSH", "Nested Segwit (P2SH-P2WSH)", "m/48'/2'/0'/1'") {
         @Override
         public Address getAddress(byte[] scriptHash) {
             return P2SH.getAddress(scriptHash);
@@ -789,7 +789,7 @@ public enum ScriptType {
             return List.of(MULTI, CUSTOM);
         }
     },
-    P2WPKH("P2WPKH", "Native Segwit (P2WPKH)", "m/84'/0'/0'") {
+    P2WPKH("P2WPKH", "Native Segwit (P2WPKH)", "m/84'/2'/0'") {
         @Override
         public Address getAddress(byte[] pubKeyHash) {
             return new P2WPKHAddress(pubKeyHash);
@@ -899,7 +899,7 @@ public enum ScriptType {
             return List.of(SINGLE);
         }
     },
-    P2WSH("P2WSH", "Native Segwit (P2WSH)", "m/48'/0'/0'/2'") {
+    P2WSH("P2WSH", "Native Segwit (P2WSH)", "m/48'/2'/0'/2'") {
         @Override
         public Address getAddress(byte[] scriptHash) {
             return new P2WSHAddress(scriptHash);
@@ -1015,7 +1015,7 @@ public enum ScriptType {
             return List.of(MULTI, CUSTOM);
         }
     },
-    P2TR("P2TR", "Taproot (P2TR)", "m/86'/0'/0'") {
+    P2TR("P2TR", "Taproot (P2TR)", "m/86'/2'/0'") {
         @Override
         public ECKey getOutputKey(ECKey derivedKey) {
             return derivedKey.getTweakedOutputKey();
@@ -1135,7 +1135,7 @@ public enum ScriptType {
             return List.of(SINGLE);
         }
     },
-    P2A("P2A", "Anchor (P2A)", "m/86'/0'/0'") {
+    P2A("P2A", "Anchor (P2A)", "m/86'/2'/0'") {
         @Override
         public Address getAddress(byte[] data) {
             return new P2AAddress(data);
@@ -1275,7 +1275,7 @@ public enum ScriptType {
     }
 
     public String getDefaultDerivationPath() {
-        return Network.get() != Network.MAINNET ? defaultDerivationPath.replace("/0'/0'", "/1'/0'") : defaultDerivationPath;
+        return Network.get() != Network.MAINNET ? defaultDerivationPath.replace("/2'/0'", "/1'/0'") : defaultDerivationPath;
     }
 
     public List<ChildNumber> getDefaultDerivation() {
