@@ -158,7 +158,7 @@ public class Bech32 {
 
     /** Decode a Bech32 string. */
     public static Bech32Data decode(final String str) {
-        return decode(str, 90);
+        return decode(str, 130);
     }
 
     public static Bech32Data decode(final String str, int limit) {
