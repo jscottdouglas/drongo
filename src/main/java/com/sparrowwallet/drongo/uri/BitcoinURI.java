@@ -71,7 +71,7 @@ public class BitcoinURI {
     public static final String FIELD_PAYJOIN_OUTPUT_SUBSTITUTION = "pjos";
     public static final String FIELD_SILENT_PAYMENTS_ADDRESS = Network.get().getSilentPaymentsAddressHrp();
 
-    public static final String BITCOIN_SCHEME = "bitcoin";
+    public static final String BITCOIN_SCHEME = "litecoin";
     private static final String ENCODED_SPACE_CHARACTER = "%20";
     private static final String AMPERSAND_SEPARATOR = "&";
     private static final String QUESTION_MARK_SEPARATOR = "?";

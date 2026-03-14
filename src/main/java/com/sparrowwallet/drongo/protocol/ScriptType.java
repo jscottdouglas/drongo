@@ -1250,6 +1250,111 @@ public enum ScriptType {
         public List<PolicyType> getAllowedPolicyTypes() {
             return Collections.emptyList();
         }
+    },
+    MWEB("MWEB", "MWEB", "m/1000'") {
+        @Override
+        public Address getAddress(byte[] pubKeys) {
+            return new MwebAddress(pubKeys);
+        }
+
+        @Override
+        public Address getAddress(ECKey key) {
+            throw new ProtocolException("No pubkey derived address for non pay to pubkey type");
+        }
+
+        @Override
+        public Address getAddress(Script script) {
+            throw new ProtocolException("No script derived address for non pay to script type");
+        }
+
+        @Override
+        public Script getOutputScript(byte[] pubKeys) {
+            List<ScriptChunk> chunks = new ArrayList<>();
+            chunks.add(new ScriptChunk(OP_0, null));
+            chunks.add(new ScriptChunk(pubKeys.length, pubKeys));
+
+            return new Script(chunks);
+        }
+
+        @Override
+        public Script getOutputScript(ECKey key) {
+            throw new ProtocolException("No pubkey derived output script for non pay to pubkey type");
+        }
+
+        @Override
+        public Script getOutputScript(Script script) {
+            throw new ProtocolException("No script derived output script for non pay to script type");
+        }
+
+        @Override
+        public String getOutputDescriptor(ECKey key) {
+            throw new ProtocolException("No pubkey derived output descriptor for non pay to pubkey type");
+        }
+
+        @Override
+        public String getOutputDescriptor(Script script) {
+            throw new ProtocolException("No script derived output descriptor for non pay to script type");
+        }
+
+        @Override
+        public String getDescriptor() {
+            return "mweb(";
+        }
+
+        @Override
+        public boolean isScriptType(Script script) {
+            List<ScriptChunk> chunks = script.chunks;
+            if (chunks.size() != 2)
+                return false;
+            if (!chunks.get(0).equalsOpCode(OP_0))
+                return false;
+            byte[] chunk1data = chunks.get(1).data;
+            if (chunk1data == null)
+                return false;
+            if (chunk1data.length != 66)
+                return false;
+            return true;
+        }
+
+        @Override
+        public byte[] getHashFromScript(Script script) {
+            return script.chunks.get(1).data;
+        }
+
+        @Override
+        public Script getScriptSig(Script scriptPubKey, ECKey pubKey, TransactionSignature signature) {
+            if(!isScriptType(scriptPubKey)) {
+                throw new ProtocolException("Provided scriptPubKey is not a " + getName() + " script");
+            }
+
+            return new Script(new byte[0]);
+        }
+
+        @Override
+        public TransactionInput addSpendingInput(Transaction transaction, TransactionOutput prevOutput, ECKey pubKey, TransactionSignature signature) {
+            Script scriptSig = getScriptSig(prevOutput.getScript(), pubKey, signature);
+            return transaction.addInput(prevOutput.getHash(), prevOutput.getIndex(), scriptSig);
+        }
+
+        @Override
+        public Script getMultisigScriptSig(Script scriptPubKey, int threshold, Map<ECKey, TransactionSignature> pubKeySignatures) {
+            throw new ProtocolException(getName() + " is not a multisig script type");
+        }
+
+        @Override
+        public TransactionInput addMultisigSpendingInput(Transaction transaction, TransactionOutput prevOutput, int threshold, Map<ECKey, TransactionSignature> pubKeySignatures) {
+            throw new ProtocolException(getName() + " is not a multisig script type");
+        }
+
+        @Override
+        public TransactionSignature.Type getSignatureType() {
+            return TransactionSignature.Type.ECDSA;
+        };
+
+        @Override
+        public List<PolicyType> getAllowedPolicyTypes() {
+            return List.of(SINGLE);
+        }
     };
 
     private final String name;

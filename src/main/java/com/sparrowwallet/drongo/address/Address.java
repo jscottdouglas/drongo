@@ -143,6 +143,28 @@ public abstract class Address {
                     nested = e;
                 }
             }
+
+            if(address.toLowerCase(Locale.ROOT).startsWith(network.getMwebAddressHrp())) {
+                try {
+                    Bech32.Bech32Data data = Bech32.decode(address);
+                    if(data.hrp.equals(network.getMwebAddressHrp())) {
+                        int witnessVersion = data.data[0];
+                        if(witnessVersion == 0) {
+                            if (data.encoding != Bech32.Encoding.BECH32) {
+                                throw new InvalidAddressException("Invalid address - witness version is 0 but encoding is " + data.encoding);
+                            }
+
+                            byte[] convertedProgram = Arrays.copyOfRange(data.data, 1, data.data.length);
+                            byte[] witnessProgram = Bech32.convertBits(convertedProgram, 0, convertedProgram.length, 5, 8, false);
+                            if (witnessProgram.length == 66) {
+                                return new MwebAddress(witnessProgram);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    nested = e;
+                }
+            }
         }
 
         if(nested != null) {
