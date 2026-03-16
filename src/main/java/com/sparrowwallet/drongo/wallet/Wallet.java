@@ -3,10 +3,7 @@ package com.sparrowwallet.drongo.wallet;
 import com.sparrowwallet.drongo.*;
 import com.sparrowwallet.drongo.address.Address;
 import com.sparrowwallet.drongo.bip47.PaymentCode;
-import com.sparrowwallet.drongo.crypto.ChildNumber;
-import com.sparrowwallet.drongo.crypto.DeterministicKey;
-import com.sparrowwallet.drongo.crypto.ECKey;
-import com.sparrowwallet.drongo.crypto.Key;
+import com.sparrowwallet.drongo.crypto.*;
 import com.sparrowwallet.drongo.policy.Policy;
 import com.sparrowwallet.drongo.policy.PolicyType;
 import com.sparrowwallet.drongo.protocol.*;
@@ -683,6 +680,13 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
 
     public Address getAddress(WalletNode node) {
         if(policyType == PolicyType.SINGLE) {
+            if(scriptType == MWEB) {
+                Keystore keystore = getKeystores().getFirst();
+                ECKey scan = keystore.getMwebScanPrivateKey();
+                ECKey spendPub = keystore.getMwebSpendPublicKey();
+                int index = node.getDerivation().getLast().i();
+                return scriptType.getAddress(MwebAddressDeriver.Derive(scan, spendPub, index));
+            }
             ECKey pubKey = node.getPubKey();
             return scriptType.getAddress(pubKey);
         } else if(policyType == PolicyType.MULTI) {
@@ -709,6 +713,13 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
 
     public String getOutputDescriptor(WalletNode node) {
         if(policyType == PolicyType.SINGLE) {
+            if(scriptType == MWEB) {
+                Keystore keystore = getKeystores().getFirst();
+                ECKey scan = keystore.getMwebScanPrivateKey();
+                ECKey spendPub = keystore.getMwebSpendPublicKey();
+                int index = node.getDerivation().getLast().i();
+                return "mweb(" + scan.getPrivateKeyEncoded() + "," + Utils.bytesToHex(spendPub.getPubKey(true)) + "," + index + ")";
+            }
             ECKey pubKey = node.getPubKey();
             return scriptType.getOutputDescriptor(pubKey);
         } else if(policyType == PolicyType.MULTI) {

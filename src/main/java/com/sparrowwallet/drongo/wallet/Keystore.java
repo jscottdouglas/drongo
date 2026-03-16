@@ -27,6 +27,8 @@ public class Keystore extends Persistable {
     private WalletModel walletModel = WalletModel.SPARROW;
     private KeyDerivation keyDerivation;
     private ExtendedKey extendedPublicKey;
+    private ECKey mwebScanPrivateKey;
+    private ECKey mwebSpendPublicKey;
     private PaymentCode externalPaymentCode;
     private byte[] deviceRegistration;
     private MasterPrivateExtendedKey masterPrivateExtendedKey;
@@ -96,6 +98,22 @@ public class Keystore extends Persistable {
     public void setExtendedPublicKey(ExtendedKey extendedPublicKey) {
         this.extendedPublicKey = extendedPublicKey;
         this.extendedPublicKeyChecked = false;
+    }
+
+    public ECKey getMwebScanPrivateKey() {
+        return mwebScanPrivateKey;
+    }
+
+    public void setMwebScanPrivateKey(ECKey mwebScanPrivateKey) {
+        this.mwebScanPrivateKey = mwebScanPrivateKey;
+    }
+
+    public ECKey getMwebSpendPublicKey() {
+        return mwebSpendPublicKey;
+    }
+
+    public void setMwebSpendPublicKey(ECKey mwebSpendPublicKey) {
+        this.mwebSpendPublicKey = mwebSpendPublicKey;
     }
 
     public PaymentCode getExternalPaymentCode() {
@@ -373,6 +391,12 @@ public class Keystore extends Persistable {
         if(extendedPublicKey != null) {
             copy.setExtendedPublicKey(extendedPublicKey.copy());
         }
+        if(mwebScanPrivateKey != null) {
+            copy.setMwebScanPrivateKey(ECKey.fromPrivate(mwebScanPrivateKey.getPrivKey()));
+        }
+        if(mwebSpendPublicKey != null) {
+            copy.setMwebSpendPublicKey(ECKey.fromPublicOnly(mwebSpendPublicKey.getPubKey()));
+        }
         if(masterPrivateExtendedKey != null) {
             copy.setMasterPrivateExtendedKey(masterPrivateExtendedKey.copy());
         }
@@ -411,10 +435,19 @@ public class Keystore extends Persistable {
         DeterministicKey derivedKeyPublicOnly = derivedKey.dropPrivateBytes().dropParent();
         ExtendedKey xpub = new ExtendedKey(derivedKeyPublicOnly, derivedKey.getParentFingerprint(), derivation.isEmpty() ? ChildNumber.ZERO : derivation.get(derivation.size() - 1));
 
+        var der = new ArrayList<>(derivation);
+        der.add(new ChildNumber(0, true));
+        var mwebScanPrivateKey = xprv.getKey(der);
+        der = new ArrayList<>(derivation);
+        der.add(new ChildNumber(1, true));
+        var mwebSpendPublicKey = xprv.getKey(der).dropPrivateBytes().dropParent();
+
         keystore.setSource(KeystoreSource.SW_SEED);
         keystore.setWalletModel(WalletModel.SPARROW);
         keystore.setKeyDerivation(new KeyDerivation(masterFingerprint, KeyDerivation.writePath(derivation)));
         keystore.setExtendedPublicKey(ExtendedKey.fromDescriptor(xpub.toString()));
+        keystore.setMwebScanPrivateKey(mwebScanPrivateKey);
+        keystore.setMwebSpendPublicKey(mwebSpendPublicKey);
 
         int account = ScriptType.getScriptTypesForPolicyType(PolicyType.SINGLE).stream()
                 .mapToInt(scriptType -> scriptType.getAccount(keystore.getKeyDerivation().getDerivationPath())).filter(idx -> idx > -1).findFirst().orElse(0);
