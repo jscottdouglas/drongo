@@ -548,7 +548,11 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
     }
 
     public int getGapLimit() {
-        return gapLimit == null ? DEFAULT_LOOKAHEAD : gapLimit;
+        int defaultGapLimit = DEFAULT_LOOKAHEAD;
+        if (scriptType == MWEB) {
+            defaultGapLimit = 1000;
+        }
+        return gapLimit == null ? defaultGapLimit : gapLimit;
     }
 
     public void gapLimit(Integer gapLimit) {
@@ -618,6 +622,9 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
     }
 
     public int getLookAheadIndex(WalletNode node) {
+        if (scriptType == MWEB && node.getKeyPurpose() == KeyPurpose.CHANGE) {
+            return 0;
+        }
         int lookAheadIndex = getGapLimit() - 1;
         Integer highestUsed = node.getHighestUsedIndex();
         if(highestUsed != null) {
@@ -684,7 +691,10 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
                 Keystore keystore = getKeystores().getFirst();
                 ECKey scan = keystore.getMwebScanPrivateKey();
                 ECKey spendPub = keystore.getMwebSpendPublicKey();
-                int index = node.getDerivation().getLast().i();
+                int index = 0;
+                if (node.getKeyPurpose() == KeyPurpose.RECEIVE) {
+                    index = node.getDerivation().getLast().i() + 1;
+                }
                 return scriptType.getAddress(MwebAddressDeriver.Derive(scan, spendPub, index));
             }
             ECKey pubKey = node.getPubKey();
@@ -717,7 +727,10 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
                 Keystore keystore = getKeystores().getFirst();
                 ECKey scan = keystore.getMwebScanPrivateKey();
                 ECKey spendPub = keystore.getMwebSpendPublicKey();
-                int index = node.getDerivation().getLast().i();
+                int index = 0;
+                if (node.getKeyPurpose() == KeyPurpose.RECEIVE) {
+                    index = node.getDerivation().getLast().i() + 1;
+                }
                 return "mweb(" + scan.getPrivateKeyEncoded() + "," + Utils.bytesToHex(spendPub.getPubKey(true)) + "," + index + ")";
             }
             ECKey pubKey = node.getPubKey();
