@@ -15,7 +15,7 @@ import static com.sparrowwallet.drongo.Utils.uint64ToByteStreamLE;
 
 public class Transaction extends ChildMessage {
     public static final int MAX_BLOCK_SIZE_VBYTES = 1000 * 1000;
-    public static final long MAX_BITCOIN = 21 * 1000 * 1000L;
+    public static final long MAX_BITCOIN = 84 * 1000 * 1000L;
     public static final long SATOSHIS_PER_BITCOIN = 100 * 1000 * 1000L;
     public static final long MAX_BLOCK_LOCKTIME = 500000000L;
     public static final int WITNESS_SCALE_FACTOR = 4;
