@@ -126,7 +126,7 @@ public class Transaction extends ChildMessage {
 
     public Sha256Hash calculateTxId(boolean useWitnesses) {
         for(TransactionInput in : inputs) {
-            if(in.getOutpoint().getIndex() == -1) {
+            if((int)in.getOutpoint().getIndex() == -1) {
                 return in.getOutpoint().getHash();
             }
         }
@@ -353,7 +353,7 @@ public class Transaction extends ChildMessage {
     }
 
     public List<TransactionInput> getInputs() {
-        return inputs.stream().filter(in -> in.getOutpoint().getIndex() >= 0).toList();
+        return inputs.stream().filter(in -> (int)in.getOutpoint().getIndex() >= 0).toList();
     }
 
     public TransactionInput addInput(Sha256Hash spendTxHash, long outputIndex, Script script) {
@@ -411,7 +411,7 @@ public class Transaction extends ChildMessage {
     }
 
     public Sha256Hash getMwebOutputId(int index) {
-        return inputs.stream().filter(in -> in.getOutpoint().getIndex() == -2).skip(index).findFirst()
+        return inputs.stream().filter(in -> (int)in.getOutpoint().getIndex() == -2).skip(index).findFirst()
                 .map(in -> in.getOutpoint().getHash()).orElse(null);
     }
 
