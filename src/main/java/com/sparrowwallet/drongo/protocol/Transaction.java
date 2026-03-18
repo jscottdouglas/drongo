@@ -125,6 +125,12 @@ public class Transaction extends ChildMessage {
     }
 
     public Sha256Hash calculateTxId(boolean useWitnesses) {
+        for(TransactionInput in : inputs) {
+            if(in.getOutpoint().getIndex() == -1) {
+                return in.getOutpoint().getHash();
+            }
+        }
+
         ByteArrayOutputStream stream = new UnsafeByteArrayOutputStream(length < 32 ? 32 : length + 32);
         try {
             bitcoinSerializeToStream(stream, useWitnesses);
@@ -132,6 +138,10 @@ public class Transaction extends ChildMessage {
             throw new RuntimeException(e); // cannot happen
         }
         return Sha256Hash.wrapReversed(Sha256Hash.hashTwice(stream.toByteArray()));
+    }
+
+    public void setMwebTxId(Sha256Hash txId) {
+        addInput(txId, -1, new Script(List.of()));
     }
 
     public boolean isSegwit() {
@@ -343,7 +353,7 @@ public class Transaction extends ChildMessage {
     }
 
     public List<TransactionInput> getInputs() {
-        return Collections.unmodifiableList(inputs);
+        return inputs.stream().filter(in -> in.getOutpoint().getIndex() >= 0).toList();
     }
 
     public TransactionInput addInput(Sha256Hash spendTxHash, long outputIndex, Script script) {
@@ -394,6 +404,15 @@ public class Transaction extends ChildMessage {
         outputs.add(output);
         adjustLength(outputs.size(), output.length);
         return output;
+    }
+
+    public void addMwebOutputId(Sha256Hash outputId) {
+        addInput(outputId, -2, new Script(List.of()));
+    }
+
+    public Sha256Hash getMwebOutputId(int index) {
+        return inputs.stream().filter(in -> in.getOutpoint().getIndex() == -2).skip(index).findFirst()
+                .map(in -> in.getOutpoint().getHash()).orElse(null);
     }
 
     public void verify() throws VerificationException {
