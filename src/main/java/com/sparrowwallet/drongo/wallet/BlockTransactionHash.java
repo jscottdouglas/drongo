@@ -50,7 +50,7 @@ public abstract class BlockTransactionHash extends Persistable {
             return 0;
         }
 
-        return currentBlockHeight - height + 1;
+        return Math.max(1, currentBlockHeight - height + 1);
     }
 
     public Date getDate() {
