@@ -1505,7 +1505,7 @@ public enum ScriptType {
 
     public static final ScriptType[] SINGLE_KEY_TYPES = {P2PK, P2TR};
 
-    public static final ScriptType[] SINGLE_HASH_TYPES = {P2PKH, P2SH, P2SH_P2WPKH, P2SH_P2WSH, P2WPKH, P2WSH};
+    public static final ScriptType[] SINGLE_HASH_TYPES = {P2PKH, P2SH, P2SH_P2WPKH, P2SH_P2WSH, P2WPKH, P2WSH, MWEB};
 
     public static final ScriptType[] ADDRESSABLE_TYPES = {P2PKH, P2SH, P2SH_P2WPKH, P2SH_P2WSH, P2WPKH, P2WSH, P2TR, P2A, MWEB};
 

@@ -1078,6 +1078,9 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
             throw new InsufficientFundsException("Not enough combined value in all available UTXOs to send a transaction to send the provided payments at the user set fee" + (params.fee() == null ? " rate" : ""));
         }
 
+        long noChangeFeeIncrease = 0;
+        long changeFeeIncrease = 0;
+
         while(true) {
             List<Map<BlockTransactionHashIndex, WalletNode>> selectedUtxoSets = selectInputSets(params, availableTxos, valueRequiredAmt);
             Map<BlockTransactionHashIndex, WalletNode> selectedUtxos = new LinkedHashMap<>();
@@ -1143,6 +1146,9 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
                 noChangeFeeRequiredAmt++;
             }
 
+            noChangeFeeIncrease += params.feeEstimator().calcFeeIncrease(this, selectedUtxos, outputs, params.feeRate());
+            noChangeFeeRequiredAmt += noChangeFeeIncrease;
+
             //If sending all selected utxos, set the recipient amount to equal to total of those utxos less the no change fee
             long maxSendAmt = totalSelectedAmt - noChangeFeeRequiredAmt;
 
@@ -1190,6 +1196,7 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
                 while(changeFeeRequiredAmt % numSets > 0) {
                     changeFeeRequiredAmt++;
                 }
+                changeFeeRequiredAmt += changeFeeIncrease;
 
                 //Add change output(s)
                 Map<WalletNode, Long> changeMap = new LinkedHashMap<>();
@@ -1200,6 +1207,10 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
                     changeMap.put(changeNode, setChangeAmt);
                     changeNode = getFreshNode(getChangeKeyPurpose(), changeNode);
                 }
+
+                var feeIncrease = params.feeEstimator().calcFeeIncrease(this, selectedUtxos, outputs, params.feeRate());
+                changeFeeIncrease += feeIncrease;
+                if(feeIncrease > 0) continue;
 
                 if(setChangeAmts.stream().anyMatch(amt -> amt < costOfChangeAmt)) {
                     //The new fee has meant that one of the change outputs is now dust. We pay too high a fee without change, but change is dust when added.
