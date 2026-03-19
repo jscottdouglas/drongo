@@ -33,6 +33,9 @@ public class PSBT {
     public static final byte PSBT_GLOBAL_TX_MODIFIABLE = 0x06;
     public static final byte PSBT_GLOBAL_SP_ECDH_SHARE = 0x07;
     public static final byte PSBT_GLOBAL_SP_DLEQ = 0x08;
+    public static final byte PSBT_GLOBAL_MWEB_TX_OFFSET = (byte)0x90;
+    public static final byte PSBT_GLOBAL_MWEB_TX_STEALTH_OFFSET = (byte)0x91;
+    public static final byte PSBT_GLOBAL_MWEB_KERNEL_COUNT = (byte)0x92;
     public static final byte PSBT_GLOBAL_VERSION = (byte)0xfb;
     public static final byte PSBT_GLOBAL_PROPRIETARY = (byte)0xfc;
 
@@ -42,10 +45,12 @@ public class PSBT {
     public static final int STATE_GLOBALS = 1;
     public static final int STATE_INPUTS = 2;
     public static final int STATE_OUTPUTS = 3;
-    public static final int STATE_END = 4;
+    public static final int STATE_KERNELS = 4;
+    public static final int STATE_END = 5;
 
     private int inputs = 0;
     private int outputs = 0;
+    private int kernels = 0;
 
     private byte[] psbtBytes;
 
@@ -61,12 +66,16 @@ public class PSBT {
     private Long fallbackLocktime = null;
     private Long inputCount = null;
     private Long outputCount = null;
+    private Long kernelCount = null;
     private Byte modifiable = null;
     private final Map<ECKey, ECKey> silentPaymentsEcdhShares = new LinkedHashMap<>();
     private final Map<ECKey, SilentPaymentsDLEQProof> silentPaymentsDLEQProofs = new LinkedHashMap<>();
+    private byte[] mwebTxOffset;
+    private byte[] mwebStealthOffset;
 
     private final List<PSBTInput> psbtInputs = new ArrayList<>();
     private final List<PSBTOutput> psbtOutputs = new ArrayList<>();
+    private final List<PSBTKernel> psbtKernels = new ArrayList<>();
 
     private static final Logger log = LoggerFactory.getLogger(PSBT.class);
 
@@ -240,6 +249,7 @@ public class PSBT {
     private void parse(boolean verifySignatures) throws PSBTParseException {
         int seenInputs = 0;
         int seenOutputs = 0;
+        int seenKernels = 0;
 
         ByteBuffer psbtByteBuffer = ByteBuffer.wrap(psbtBytes);
 
@@ -258,9 +268,11 @@ public class PSBT {
         List<PSBTEntry> globalEntries = new ArrayList<>();
         List<List<PSBTEntry>> inputEntryLists = new ArrayList<>();
         List<List<PSBTEntry>> outputEntryLists = new ArrayList<>();
+        List<List<PSBTEntry>> kernelEntryLists = new ArrayList<>();
 
         List<PSBTEntry> inputEntries = new ArrayList<>();
         List<PSBTEntry> outputEntries = new ArrayList<>();
+        List<PSBTEntry> kernelEntries = new ArrayList<>();
 
         while (psbtByteBuffer.hasRemaining()) {
             PSBTEntry entry = new PSBTEntry(psbtByteBuffer);
@@ -287,8 +299,18 @@ public class PSBT {
 
                         seenOutputs++;
                         if (seenOutputs == outputs) {
-                            currentState = STATE_END;
+                            currentState = STATE_KERNELS;
                             parseOutputEntries(outputEntryLists);
+                        }
+                        break;
+                    case STATE_KERNELS:
+                        kernelEntryLists.add(kernelEntries);
+                        kernelEntries = new ArrayList<>();
+
+                        seenKernels++;
+                        if (seenKernels == kernels) {
+                            currentState = STATE_END;
+                            parseKernelEntries(kernelEntryLists);
                         }
                         break;
                     case STATE_END:
@@ -302,6 +324,8 @@ public class PSBT {
                 inputEntries.add(entry);
             } else if (currentState == STATE_OUTPUTS) {
                 outputEntries.add(entry);
+            } else if (currentState == STATE_KERNELS) {
+                kernelEntries.add(entry);
             } else {
                 throw new PSBTParseException("PSBT structure invalid");
             }
@@ -427,6 +451,29 @@ public class PSBT {
                     SilentPaymentsDLEQProof dleqProof = SilentPaymentsDLEQProof.fromBytes(entry.getData());
                     this.silentPaymentsDLEQProofs.put(proofScanKey, dleqProof);
                     log.debug("PSBT global silent payments DLEQ proof for scan key: " + Utils.bytesToHex(entry.getKeyData()));
+                    break;
+                case PSBT_GLOBAL_MWEB_TX_OFFSET:
+                    entry.checkOneByteKey();
+                    if(entry.getData().length != 32) {
+                        throw new PSBTParseException("PSBT global mweb tx offset must be 32 bytes");
+                    }
+                    this.mwebTxOffset = entry.getData();
+                    log.debug("PSBT global mweb tx offset: " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_GLOBAL_MWEB_TX_STEALTH_OFFSET:
+                    entry.checkOneByteKey();
+                    if(entry.getData().length != 32) {
+                        throw new PSBTParseException("PSBT global mweb tx stealth offset must be 32 bytes");
+                    }
+                    this.mwebStealthOffset = entry.getData();
+                    log.debug("PSBT global mweb tx stealth offset: " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_GLOBAL_MWEB_KERNEL_COUNT:
+                    entry.checkOneByteKey();
+                    VarInt varIntKernelCount = new VarInt(entry.getData(), 0);
+                    this.kernelCount = varIntKernelCount.value;
+                    this.kernels = kernelCount.intValue();
+                    log.debug("PSBT kernel count: " + kernelCount);
                     break;
                 case PSBT_GLOBAL_PROPRIETARY:
                     globalProprietary.put(Utils.bytesToHex(entry.getKeyData()), Utils.bytesToHex(entry.getData()));
@@ -558,6 +605,20 @@ public class PSBT {
             }
 
             this.psbtOutputs.add(output);
+        }
+    }
+
+    private void parseKernelEntries(List<List<PSBTEntry>> kernelEntryLists) throws PSBTParseException {
+        for(List<PSBTEntry> kernelEntries : kernelEntryLists) {
+            PSBTEntry duplicate = findDuplicateKey(kernelEntries);
+            if(duplicate != null && duplicate.getKeyType() != PSBTKernel.PSBT_KERNEL_MWEB_PEGOUT) {
+                throw new PSBTParseException("Found duplicate key for PSBT kernel: " + Utils.bytesToHex(duplicate.getKey()));
+            }
+
+            int kernelIndex = this.psbtKernels.size();
+            PSBTKernel kernel = new PSBTKernel(this, kernelEntries, kernelIndex);
+
+            this.psbtKernels.add(kernel);
         }
     }
 

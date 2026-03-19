@@ -2,7 +2,9 @@ package com.sparrowwallet.drongo.psbt;
 
 import com.sparrowwallet.drongo.KeyDerivation;
 import com.sparrowwallet.drongo.Utils;
+import com.sparrowwallet.drongo.address.MwebAddress;
 import com.sparrowwallet.drongo.crypto.ECKey;
+import com.sparrowwallet.drongo.crypto.SchnorrSignature;
 import com.sparrowwallet.drongo.dns.DnsPayment;
 import com.sparrowwallet.drongo.dns.DnsPaymentResolver;
 import com.sparrowwallet.drongo.dns.DnsPaymentValidationException;
@@ -12,6 +14,7 @@ import com.sparrowwallet.drongo.uri.BitcoinURIParseException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -30,6 +33,15 @@ public class PSBTOutput {
     public static final byte PSBT_OUT_SP_V0_INFO = 0x09;
     public static final byte PSBT_OUT_SP_V0_LABEL = 0x0a;
     public static final byte PSBT_OUT_DNSSEC_PROOF = 0x35;
+    public static final byte PSBT_OUT_MWEB_STEALTH_ADDRESS = (byte)0x90;
+    public static final byte PSBT_OUT_MWEB_OUTPUT_COMMIT = (byte)0x91;
+    public static final byte PSBT_OUT_MWEB_FEATURES = (byte)0x92;
+    public static final byte PSBT_OUT_MWEB_SENDER_PUBKEY = (byte)0x93;
+    public static final byte PSBT_OUT_MWEB_OUTPUT_PUBKEY = (byte)0x94;
+    public static final byte PSBT_OUT_MWEB_STANDARD_FIELDS = (byte)0x95;
+    public static final byte PSBT_OUT_MWEB_RANGE_PROOF = (byte)0x96;
+    public static final byte PSBT_OUT_MWEB_SIGNATURE = (byte)0x97;
+    public static final byte PSBT_OUT_MWEB_EXTRA_DATA = (byte)0x98;
     public static final byte PSBT_OUT_PROPRIETARY = (byte)0xfc;
 
     private Script redeemScript;
@@ -45,6 +57,18 @@ public class PSBTOutput {
     private Script script;
     private SilentPaymentAddress silentPaymentAddress;
     private Long silentPaymentLabel;
+    private MwebAddress mwebStealthAddress;
+    private byte[] mwebOutputCommit;
+    private Byte mwebFeatures;
+    private ECKey mwebSenderPubKey;
+    private ECKey mwebOutputPubKey;
+    private ECKey mwebKeyExchangePubKey;
+    private Byte mwebViewTag;
+    private Long mwebEncryptedValue;
+    private byte[] mwebEncryptedNonce;
+    private byte[] mwebRangeProof;
+    private SchnorrSignature mwebSignature;
+    private byte[] mwebExtraData;
 
     private static final Logger log = LoggerFactory.getLogger(PSBTOutput.class);
 
@@ -171,6 +195,66 @@ public class PSBTOutput {
                     entry.checkOneByteKey();
                     this.dnssecProof = parseDnssecProof(entry.getData());
                     break;
+                case PSBT_OUT_MWEB_STEALTH_ADDRESS:
+                    entry.checkOneByteKey();
+                    if(entry.getData().length != 66) {
+                        throw new PSBTParseException("PSBT output mweb stealth address must be 66 bytes");
+                    }
+                    this.mwebStealthAddress = new MwebAddress(entry.getData());
+                    log.debug("Found output mweb stealth address " + this.mwebStealthAddress);
+                    break;
+                case PSBT_OUT_MWEB_OUTPUT_COMMIT:
+                    entry.checkOneByteKey();
+                    this.mwebOutputCommit = entry.getData();
+                    log.debug("Found output mweb output commit " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_OUT_MWEB_FEATURES:
+                    entry.checkOneByteKey();
+                    if(entry.getData().length != 1) {
+                        throw new PSBTParseException("PSBT output mweb output features must be 1 byte");
+                    }
+                    this.mwebFeatures = entry.getData()[0];
+                    log.debug("Found output mweb output features " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_OUT_MWEB_SENDER_PUBKEY:
+                    entry.checkOneByteKey();
+                    this.mwebSenderPubKey = ECKey.fromPublicOnly(entry.getData());
+                    log.debug("Found output mweb sender pubkey " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_OUT_MWEB_OUTPUT_PUBKEY:
+                    entry.checkOneByteKey();
+                    this.mwebOutputPubKey = ECKey.fromPublicOnly(entry.getData());
+                    log.debug("Found output mweb output pubkey " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_OUT_MWEB_STANDARD_FIELDS:
+                    entry.checkOneByteKey();
+                    if(entry.getData().length != 33+1+8+16) {
+                        throw new PSBTParseException("PSBT output mweb standard fields must be 33+1+8+16 bytes");
+                    }
+                    this.mwebKeyExchangePubKey = ECKey.fromPublicOnly(Arrays.copyOfRange(entry.getData(), 0, 33));
+                    log.debug("Found output mweb key exchange pubkey " + Utils.bytesToHex(mwebKeyExchangePubKey.getPubKey(true)));
+                    this.mwebViewTag = entry.getData()[33];
+                    log.debug("Found output mweb view tag " + mwebViewTag);
+                    this.mwebEncryptedValue = Utils.readInt64(entry.getData(), 34);
+                    log.debug("Found output mweb encrypted value " + mwebEncryptedValue);
+                    this.mwebEncryptedNonce = Arrays.copyOfRange(entry.getData(), 42, 58);
+                    log.debug("Found output mweb encrypted nonce " + Utils.bytesToHex(mwebEncryptedNonce));
+                    break;
+                case PSBT_OUT_MWEB_RANGE_PROOF:
+                    entry.checkOneByteKey();
+                    this.mwebRangeProof = entry.getData();
+                    log.debug("Found output mweb range proof " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_OUT_MWEB_EXTRA_DATA:
+                    entry.checkOneByteKey();
+                    this.mwebExtraData = entry.getData();
+                    log.debug("Found output mweb extra data " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_OUT_MWEB_SIGNATURE:
+                    entry.checkOneByteKey();
+                    this.mwebSignature = SchnorrSignature.decode(entry.getData());
+                    log.debug("Found output mweb output signature " + Utils.bytesToHex(entry.getData()));
+                    break;
                 default:
                     log.warn("PSBT output not recognized key type: " + entry.getKeyType());
             }
@@ -208,6 +292,43 @@ public class PSBTOutput {
                 byte[] labelBytes = new byte[4];
                 Utils.uint32ToByteArrayLE(silentPaymentLabel, labelBytes, 0);
                 entries.add(populateEntry(PSBT_OUT_SP_V0_LABEL, null, labelBytes));
+            }
+            if(mwebStealthAddress != null && mwebSignature == null) {
+                entries.add(populateEntry(PSBT_OUT_MWEB_STEALTH_ADDRESS, null, mwebStealthAddress.getData()));
+            }
+            if(mwebOutputCommit != null) {
+                entries.add(populateEntry(PSBT_OUT_MWEB_OUTPUT_COMMIT, null, mwebOutputCommit));
+            }
+            if(mwebFeatures != null) {
+                entries.add(populateEntry(PSBT_OUT_MWEB_FEATURES, null, new byte[]{mwebFeatures}));
+            }
+            if(mwebSenderPubKey != null) {
+                entries.add(populateEntry(PSBT_OUT_MWEB_SENDER_PUBKEY, null, mwebSenderPubKey.getPubKey(true)));
+            }
+            if(mwebOutputPubKey != null) {
+                entries.add(populateEntry(PSBT_OUT_MWEB_OUTPUT_PUBKEY, null, mwebOutputPubKey.getPubKey(true)));
+            }
+            if(mwebExtraData != null) {
+                entries.add(populateEntry(PSBT_OUT_MWEB_EXTRA_DATA, null, mwebExtraData));
+            }
+            if(mwebKeyExchangePubKey != null && mwebViewTag != null && mwebEncryptedValue != null && mwebEncryptedNonce != null) {
+                try {
+                    var os = new ByteArrayOutputStream();
+                    os.write(mwebKeyExchangePubKey.getPubKey(true));
+                    os.write(mwebViewTag);
+                    byte[] bs = new byte[8];
+                    Utils.int64ToByteArrayLE(mwebEncryptedValue, bs, 0);
+                    os.write(bs);
+                    os.write(mwebEncryptedNonce);
+                    entries.add(populateEntry(PSBT_OUT_MWEB_STANDARD_FIELDS, null, os.toByteArray()));
+                } catch (IOException _) {
+                }
+            }
+            if(mwebRangeProof != null) {
+                entries.add(populateEntry(PSBT_OUT_MWEB_RANGE_PROOF, null, mwebRangeProof));
+            }
+            if(mwebSignature != null) {
+                entries.add(populateEntry(PSBT_OUT_MWEB_SIGNATURE, null, mwebSignature.encode()));
             }
         }
 
@@ -263,6 +384,54 @@ public class PSBTOutput {
 
         if(psbtOutput.silentPaymentLabel != null) {
             silentPaymentLabel = psbtOutput.silentPaymentLabel;
+        }
+
+        if(psbtOutput.mwebStealthAddress != null) {
+            mwebStealthAddress = psbtOutput.mwebStealthAddress;
+        }
+
+        if(psbtOutput.mwebOutputCommit != null) {
+            mwebOutputCommit = psbtOutput.mwebOutputCommit;
+        }
+
+        if(psbtOutput.mwebFeatures != null) {
+            mwebFeatures = psbtOutput.mwebFeatures;
+        }
+
+        if(psbtOutput.mwebSenderPubKey != null) {
+            mwebSenderPubKey = psbtOutput.mwebSenderPubKey;
+        }
+
+        if(psbtOutput.mwebOutputPubKey != null) {
+            mwebOutputPubKey = psbtOutput.mwebOutputPubKey;
+        }
+
+        if(psbtOutput.mwebKeyExchangePubKey != null) {
+            mwebKeyExchangePubKey = psbtOutput.mwebKeyExchangePubKey;
+        }
+
+        if(psbtOutput.mwebViewTag != null) {
+            mwebViewTag = psbtOutput.mwebViewTag;
+        }
+
+        if(psbtOutput.mwebEncryptedValue != null) {
+            mwebEncryptedValue = psbtOutput.mwebEncryptedValue;
+        }
+
+        if(psbtOutput.mwebEncryptedNonce != null) {
+            mwebEncryptedNonce = psbtOutput.mwebEncryptedNonce;
+        }
+
+        if(psbtOutput.mwebRangeProof != null) {
+            mwebRangeProof = psbtOutput.mwebRangeProof;
+        }
+
+        if(psbtOutput.mwebSignature != null) {
+            mwebSignature = psbtOutput.mwebSignature;
+        }
+
+        if(psbtOutput.mwebExtraData != null) {
+            mwebExtraData = psbtOutput.mwebExtraData;
         }
 
         proprietary.putAll(psbtOutput.proprietary);

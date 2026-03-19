@@ -3,6 +3,7 @@ package com.sparrowwallet.drongo.psbt;
 import com.sparrowwallet.drongo.KeyDerivation;
 import com.sparrowwallet.drongo.Utils;
 import com.sparrowwallet.drongo.crypto.ECKey;
+import com.sparrowwallet.drongo.crypto.SchnorrSignature;
 import com.sparrowwallet.drongo.protocol.*;
 import com.sparrowwallet.drongo.silentpayments.SilentPaymentsDLEQProof;
 import org.slf4j.Logger;
@@ -41,6 +42,19 @@ public class PSBTInput {
     public static final byte PSBT_IN_TAP_INTERNAL_KEY = 0x17;
     public static final byte PSBT_IN_SP_ECDH_SHARE = 0x1d;
     public static final byte PSBT_IN_SP_DLEQ = 0x1e;
+    public static final byte PSBT_IN_MWEB_SPENT_OUTPUT_ID = (byte)0x90;
+    public static final byte PSBT_IN_MWEB_SPENT_OUTPUT_COMMIT = (byte)0x91;
+    public static final byte PSBT_IN_MWEB_SPENT_OUTPUT_PUBKEY = (byte)0x92;
+    public static final byte PSBT_IN_MWEB_INPUT_PUBKEY = (byte)0x93;
+    public static final byte PSBT_IN_MWEB_INPUT_FEATURES = (byte)0x94;
+    public static final byte PSBT_IN_MWEB_INPUT_SIGNATURE = (byte)0x95;
+    public static final byte PSBT_IN_MWEB_ADDRESS_INDEX = (byte)0x96;
+    public static final byte PSBT_IN_MWEB_INPUT_AMOUNT = (byte)0x97;
+    public static final byte PSBT_IN_MWEB_SHARED_SECRET = (byte)0x98;
+    public static final byte PSBT_IN_MWEB_KEY_EXCHANGE_PUBKEY = (byte)0x99;
+    public static final byte PSBT_IN_MWEB_MASTER_SCAN_KEY_ORIGIN = (byte)0x9a;
+    public static final byte PSBT_IN_MWEB_MASTER_SPEND_KEY_ORIGIN = (byte)0x9b;
+    public static final byte PSBT_IN_MWEB_EXTRA_DATA = (byte)0x9c;
     public static final byte PSBT_IN_PROPRIETARY = (byte)0xfc;
 
     private final PSBT psbt;
@@ -71,6 +85,21 @@ public class PSBTInput {
     private Long requiredHeightLocktime;
     private final Map<ECKey, ECKey> silentPaymentsEcdhShares = new LinkedHashMap<>();
     private final Map<ECKey, SilentPaymentsDLEQProof> silentPaymentsDLEQProofs = new LinkedHashMap<>();
+    private Sha256Hash mwebOutputId;
+    private Long mwebAddressIndex;
+    private Long mwebAmount;
+    private ECKey mwebSharedSecret;
+    private ECKey mwebKeyExchangePubKey;
+    private byte[] mwebCommit;
+    private ECKey mwebOutputPubKey;
+    private ECKey mwebInputPubKey;
+    private Byte mwebFeatures;
+    private SchnorrSignature mwebInputSig;
+    private ECKey mwebMasterScanPubKey;
+    private KeyDerivation mwebMasterScanKeyDerivation;
+    private ECKey mwebMasterSpendPubKey;
+    private KeyDerivation mwebMasterSpendKeyDerivation;
+    private byte[] mwebExtraData;
 
     private int index;
 
@@ -384,6 +413,82 @@ public class PSBTInput {
                     this.tapInternalKey = ECKey.fromPublicOnly(entry.getData());
                     log.debug("Found input taproot internal key " + Utils.bytesToHex(entry.getData()));
                     break;
+                case PSBT_IN_MWEB_SPENT_OUTPUT_ID:
+                    entry.checkOneByteKey();
+                    this.mwebOutputId = Sha256Hash.wrap(entry.getData());
+                    log.debug("Found input mweb spent output id " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_IN_MWEB_SPENT_OUTPUT_COMMIT:
+                    entry.checkOneByteKey();
+                    this.mwebCommit = entry.getData();
+                    log.debug("Found input mweb spent output commit " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_IN_MWEB_SPENT_OUTPUT_PUBKEY:
+                    entry.checkOneByteKey();
+                    this.mwebOutputPubKey = ECKey.fromPublicOnly(entry.getData());
+                    log.debug("Found input mweb spent output pubkey " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_IN_MWEB_INPUT_PUBKEY:
+                    entry.checkOneByteKey();
+                    this.mwebInputPubKey = ECKey.fromPublicOnly(entry.getData());
+                    log.debug("Found input mweb input pubkey " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_IN_MWEB_INPUT_FEATURES:
+                    entry.checkOneByteKey();
+                    if(entry.getData().length != 1) {
+                        throw new PSBTParseException("PSBT input mweb input features must be 1 byte");
+                    }
+                    this.mwebFeatures = entry.getData()[0];
+                    log.debug("Found input mweb input features " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_IN_MWEB_INPUT_SIGNATURE:
+                    entry.checkOneByteKey();
+                    this.mwebInputSig = SchnorrSignature.decode(entry.getData());
+                    log.debug("Found input mweb input signature " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_IN_MWEB_ADDRESS_INDEX:
+                    entry.checkOneByteKey();
+                    if(entry.getData().length != 4) {
+                        throw new PSBTParseException("PSBT input mweb address index must be 4 bytes");
+                    }
+                    this.mwebAddressIndex = Utils.readUint32(entry.getData(), 0);
+                    log.debug("Found input mweb address index " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_IN_MWEB_INPUT_AMOUNT:
+                    entry.checkOneByteKey();
+                    if(entry.getData().length != 8) {
+                        throw new PSBTParseException("PSBT input mweb input amount must be 8 bytes");
+                    }
+                    this.mwebAmount = Utils.readInt64(entry.getData(), 0);
+                    log.debug("Found input mweb input amount " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_IN_MWEB_SHARED_SECRET:
+                    entry.checkOneByteKey();
+                    this.mwebSharedSecret = ECKey.fromPrivate(entry.getData());
+                    log.debug("Found input mweb shared secret " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_IN_MWEB_KEY_EXCHANGE_PUBKEY:
+                    entry.checkOneByteKey();
+                    this.mwebKeyExchangePubKey = ECKey.fromPublicOnly(entry.getData());
+                    log.debug("Found input mweb key exchange pubkey " + Utils.bytesToHex(entry.getData()));
+                    break;
+                case PSBT_IN_MWEB_MASTER_SCAN_KEY_ORIGIN:
+                    entry.checkOneBytePlusPubKey();
+                    this.mwebMasterScanPubKey = ECKey.fromPublicOnly(entry.getKeyData());
+                    this.mwebMasterScanKeyDerivation = parseKeyDerivation(entry.getData());
+                    log.debug("Found input mweb master scan key with master fingerprint " + this.mwebMasterScanKeyDerivation.getMasterFingerprint() + " at path " + this.mwebMasterScanKeyDerivation.getDerivationPath() + " public key " + this.mwebMasterScanPubKey);
+                    break;
+                case PSBT_IN_MWEB_MASTER_SPEND_KEY_ORIGIN:
+                    entry.checkOneBytePlusPubKey();
+                    this.mwebMasterSpendPubKey = ECKey.fromPublicOnly(entry.getKeyData());
+                    this.mwebMasterSpendKeyDerivation = parseKeyDerivation(entry.getData());
+                    log.debug("Found input mweb master spend key with master fingerprint " + this.mwebMasterSpendKeyDerivation.getMasterFingerprint() + " at path " + this.mwebMasterSpendKeyDerivation.getDerivationPath() + " public key " + this.mwebMasterSpendPubKey);
+                    break;
+                case PSBT_IN_MWEB_EXTRA_DATA:
+                    entry.checkOneByteKey();
+                    this.mwebExtraData = entry.getData();
+                    log.debug("Found input mweb input extra data " + Utils.bytesToHex(entry.getData()));
+                    break;
                 default:
                     log.warn("PSBT input not recognized key type: " + entry.getKeyType());
             }
@@ -465,6 +570,50 @@ public class PSBTInput {
             }
             for(Map.Entry<ECKey, SilentPaymentsDLEQProof> entry : silentPaymentsDLEQProofs.entrySet()) {
                 entries.add(populateEntry(PSBT_IN_SP_DLEQ, entry.getKey().getPubKey(), entry.getValue().getBytes()));
+            }
+            if(mwebOutputId != null) {
+                entries.add(populateEntry(PSBT_IN_MWEB_SPENT_OUTPUT_ID, null, mwebOutputId.getBytes()));
+            }
+            if(mwebCommit != null) {
+                entries.add(populateEntry(PSBT_IN_MWEB_SPENT_OUTPUT_COMMIT, null, mwebCommit));
+            }
+            if(mwebOutputPubKey != null) {
+                entries.add(populateEntry(PSBT_IN_MWEB_SPENT_OUTPUT_PUBKEY, null, mwebOutputPubKey.getPubKey(true)));
+            }
+            if(mwebInputPubKey != null) {
+                entries.add(populateEntry(PSBT_IN_MWEB_INPUT_PUBKEY, null, mwebInputPubKey.getPubKey(true)));
+            }
+            if(mwebFeatures != null) {
+                entries.add(populateEntry(PSBT_IN_MWEB_INPUT_FEATURES, null, new byte[]{mwebFeatures}));
+            }
+            if(mwebExtraData != null) {
+                entries.add(populateEntry(PSBT_IN_MWEB_EXTRA_DATA, null, mwebExtraData));
+            }
+            if(mwebInputSig != null) {
+                entries.add(populateEntry(PSBT_IN_MWEB_INPUT_SIGNATURE, null, mwebInputSig.encode()));
+            } else {
+                if(mwebAddressIndex != null) {
+                    byte[] bs = new byte[4];
+                    Utils.uint32ToByteArrayLE(mwebAddressIndex, bs, 0);
+                    entries.add(populateEntry(PSBT_IN_MWEB_ADDRESS_INDEX, null, bs));
+                }
+                if(mwebAmount != null) {
+                    byte[] bs = new byte[8];
+                    Utils.int64ToByteArrayLE(mwebAmount, bs, 0);
+                    entries.add(populateEntry(PSBT_IN_MWEB_INPUT_AMOUNT, null, bs));
+                }
+                if(mwebSharedSecret != null) {
+                    entries.add(populateEntry(PSBT_IN_MWEB_SHARED_SECRET, null, mwebSharedSecret.getPrivKeyBytes()));
+                }
+                if(mwebKeyExchangePubKey != null) {
+                    entries.add(populateEntry(PSBT_IN_MWEB_KEY_EXCHANGE_PUBKEY, null, mwebKeyExchangePubKey.getPubKey(true)));
+                }
+                if(mwebMasterScanPubKey != null && mwebMasterScanKeyDerivation != null) {
+                    entries.add(populateEntry(PSBT_IN_MWEB_MASTER_SCAN_KEY_ORIGIN, mwebMasterScanPubKey.getPubKey(true), serializeKeyDerivation(mwebMasterScanKeyDerivation)));
+                }
+                if(mwebMasterSpendPubKey != null && mwebMasterSpendKeyDerivation != null) {
+                    entries.add(populateEntry(PSBT_IN_MWEB_MASTER_SPEND_KEY_ORIGIN, mwebMasterSpendPubKey.getPubKey(true), serializeKeyDerivation(mwebMasterSpendKeyDerivation)));
+                }
             }
         }
 
@@ -567,6 +716,66 @@ public class PSBTInput {
 
         if(psbtInput.tapInternalKey != null) {
             tapInternalKey = psbtInput.tapInternalKey;
+        }
+
+        if(psbtInput.mwebOutputId != null) {
+            mwebOutputId = psbtInput.mwebOutputId;
+        }
+
+        if(psbtInput.mwebAddressIndex!= null) {
+            mwebAddressIndex = psbtInput.mwebAddressIndex;
+        }
+
+        if(psbtInput.mwebAmount != null) {
+            mwebAmount = psbtInput.mwebAmount;
+        }
+
+        if(psbtInput.mwebSharedSecret != null) {
+            mwebSharedSecret = psbtInput.mwebSharedSecret;
+        }
+
+        if(psbtInput.mwebKeyExchangePubKey != null) {
+            mwebKeyExchangePubKey = psbtInput.mwebKeyExchangePubKey;
+        }
+
+        if(psbtInput.mwebCommit != null) {
+            mwebCommit = psbtInput.mwebCommit;
+        }
+
+        if(psbtInput.mwebOutputPubKey != null) {
+            mwebOutputPubKey = psbtInput.mwebOutputPubKey;
+        }
+
+        if(psbtInput.mwebInputPubKey != null) {
+            mwebInputPubKey = psbtInput.mwebInputPubKey;
+        }
+
+        if(psbtInput.mwebFeatures != null) {
+            mwebFeatures = psbtInput.mwebFeatures;
+        }
+
+        if(psbtInput.mwebInputSig != null) {
+            mwebInputSig = psbtInput.mwebInputSig;
+        }
+
+        if(psbtInput.mwebMasterScanPubKey != null) {
+            mwebMasterScanPubKey = psbtInput.mwebMasterScanPubKey;
+        }
+
+        if(psbtInput.mwebMasterScanKeyDerivation != null) {
+            mwebMasterScanKeyDerivation = psbtInput.mwebMasterScanKeyDerivation;
+        }
+
+        if(psbtInput.mwebMasterSpendPubKey != null) {
+            mwebMasterSpendPubKey = psbtInput.mwebMasterSpendPubKey;
+        }
+
+        if(psbtInput.mwebMasterSpendKeyDerivation != null) {
+            mwebMasterSpendKeyDerivation = psbtInput.mwebMasterSpendKeyDerivation;
+        }
+
+        if(psbtInput.mwebExtraData != null) {
+            mwebExtraData = psbtInput.mwebExtraData;
         }
     }
 
