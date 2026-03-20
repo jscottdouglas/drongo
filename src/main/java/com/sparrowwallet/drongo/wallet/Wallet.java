@@ -691,10 +691,7 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
                 Keystore keystore = getKeystores().getFirst();
                 ECKey scan = keystore.getMwebScanPrivateKey();
                 ECKey spendPub = keystore.getMwebSpendPublicKey();
-                int index = 0;
-                if (node.getKeyPurpose() == KeyPurpose.RECEIVE) {
-                    index = node.getDerivation().getLast().i() + 1;
-                }
+                int index = MwebUtils.getAddressIndex(node);
                 return scriptType.getAddress(MwebAddressDeriver.Derive(scan, spendPub, index));
             }
             ECKey pubKey = node.getPubKey();
@@ -727,10 +724,7 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
                 Keystore keystore = getKeystores().getFirst();
                 ECKey scan = keystore.getMwebScanPrivateKey();
                 ECKey spendPub = keystore.getMwebSpendPublicKey();
-                int index = 0;
-                if (node.getKeyPurpose() == KeyPurpose.RECEIVE) {
-                    index = node.getDerivation().getLast().i() + 1;
-                }
+                int index = MwebUtils.getAddressIndex(node);
                 return "mweb(" + scan.getPrivateKeyEncoded() + "," + Utils.bytesToHex(spendPub.getPubKey(true)) + "," + index + ")";
             }
             ECKey pubKey = node.getPubKey();

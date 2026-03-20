@@ -103,4 +103,10 @@ public class TransactionOutput extends ChildMessage {
         Transaction transaction = (Transaction)parent;
         return transaction.getOutputs().indexOf(this);
     }
+
+    public Sha256Hash getMwebOutputId() {
+        Transaction transaction = (Transaction)parent;
+        return transaction.getMwebOutputId(transaction.getOutputs().stream().filter(out ->
+                ScriptType.MWEB.isScriptType(out.getScript())).toList().indexOf(this));
+    }
 }
