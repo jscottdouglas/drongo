@@ -111,7 +111,7 @@ public class PSBTKernel {
         }
     }
 
-    public List<PSBTEntry> getInputEntries(int psbtVersion) {
+    public List<PSBTEntry> getKernelEntries(int psbtVersion) {
         List<PSBTEntry> entries = new ArrayList<>();
 
         if(psbtVersion >= 2) {
@@ -189,5 +189,9 @@ public class PSBTKernel {
         if(psbtKernel.mwebSignature != null) {
             mwebSignature = psbtKernel.mwebSignature;
         }
+    }
+
+    public boolean isFinalized() {
+        return mwebSignature != null;
     }
 }

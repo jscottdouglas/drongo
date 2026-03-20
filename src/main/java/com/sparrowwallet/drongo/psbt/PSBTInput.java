@@ -1005,6 +1005,34 @@ public class PSBTInput {
         return silentPaymentsDLEQProofs;
     }
 
+    public Sha256Hash getMwebOutputId() {
+        return mwebOutputId;
+    }
+
+    public Long getMwebAmount() {
+        return mwebAmount;
+    }
+
+    public void setMwebAmount(Long mwebAmount) {
+        this.mwebAmount = mwebAmount;
+    }
+
+    public ECKey getMwebMasterScanPubKey() {
+        return mwebMasterScanPubKey;
+    }
+
+    public void setMwebMasterScanPubKey(ECKey mwebMasterScanPubKey) {
+        this.mwebMasterScanPubKey = mwebMasterScanPubKey;
+    }
+
+    public KeyDerivation getMwebMasterScanKeyDerivation() {
+        return mwebMasterScanKeyDerivation;
+    }
+
+    public void setMwebMasterScanKeyDerivation(KeyDerivation mwebMasterScanKeyDerivation) {
+        this.mwebMasterScanKeyDerivation = mwebMasterScanKeyDerivation;
+    }
+
     public boolean isSigned() {
         if(getTapKeyPathSignature() != null) {
             return true;
@@ -1029,6 +1057,8 @@ public class PSBTInput {
             return getFinalScriptSig().getSignatures();
         } else if(getTapKeyPathSignature() != null) {
             return List.of(getTapKeyPathSignature());
+        } else if(mwebInputSig != null) {
+            return List.of(new TransactionSignature(mwebInputSig, SigHash.ALL));
         } else {
             return getPartialSignatures().values();
         }
@@ -1197,7 +1227,21 @@ public class PSBTInput {
         return signingScript;
     }
 
+    public boolean isMweb() {
+        return mwebOutputId != null;
+    }
+
+    public boolean isMwebSane() {
+        return mwebInputSig == null || isFinalized();
+    }
+
     public boolean isFinalized() {
+        if(isMweb()) {
+            if(mwebInputSig == null || mwebFeatures == null || mwebCommit == null || mwebOutputPubKey == null) return false;
+            if((mwebFeatures & 1) > 0 && mwebInputPubKey == null) return false;
+            if((mwebFeatures & 2) > 0 && mwebExtraData.length == 0) return false;
+            return true;
+        }
         return getFinalScriptSig() != null || getFinalScriptWitness() != null;
     }
 
@@ -1206,6 +1250,9 @@ public class PSBTInput {
     }
 
     public TransactionOutput getUtxo() {
+        if(isMweb()) {
+            return new TransactionOutput(null, mwebAmount != null ? mwebAmount : 0, new byte[0]);
+        }
         int vout = (int)getInput().getOutpoint().getIndex();
         return getWitnessUtxo() != null ? getWitnessUtxo() : (getNonWitnessUtxo() != null ?  getNonWitnessUtxo().getOutputs().get(vout) : null);
     }

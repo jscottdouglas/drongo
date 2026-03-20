@@ -481,6 +481,9 @@ public class PSBTOutput {
 
     public Script getScript() {
         if(psbt.getPsbtVersion() >= 2) {
+            if(mwebStealthAddress != null) {
+                return mwebStealthAddress.getOutputScript();
+            }
             return script;
         }
 
@@ -549,6 +552,14 @@ public class PSBTOutput {
         this.dnssecProof = dnssecProof;
     }
 
+    public MwebAddress getMwebStealthAddress() {
+        return mwebStealthAddress;
+    }
+
+    public void setMwebStealthAddress(MwebAddress address) {
+        mwebStealthAddress = address;
+    }
+
     public TransactionOutput getOutput() {
         return psbt.getTransaction().getOutputs().get(index);
     }
@@ -559,5 +570,33 @@ public class PSBTOutput {
 
     public void clearNonFinalFields() {
         tapDerivedPublicKeys.clear();
+    }
+
+    public boolean isMweb() {
+        return mwebStealthAddress != null || mwebOutputCommit != null;
+    }
+
+    public boolean isMwebSane() {
+        if (mwebStealthAddress == null && mwebOutputCommit == null) {
+            return false;
+        }
+        if (mwebSignature != null) {
+            if (mwebOutputCommit == null || mwebFeatures == null || mwebSenderPubKey == null ||
+                mwebOutputPubKey == null || mwebRangeProof == null) {
+                return false;
+            }
+            if ((mwebFeatures & 1) > 0 && (mwebKeyExchangePubKey == null || mwebViewTag == null ||
+                                           mwebEncryptedValue == null || mwebEncryptedNonce == null)) {
+                return false;
+            }
+            if ((mwebFeatures & 2) > 0 && mwebExtraData.length == 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public boolean isFinalized() {
+        return !isMweb() || mwebSignature != null;
     }
 }

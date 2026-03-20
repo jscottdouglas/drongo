@@ -622,7 +622,7 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
     }
 
     public int getLookAheadIndex(WalletNode node) {
-        if (scriptType == MWEB && node.getKeyPurpose() == KeyPurpose.CHANGE) {
+        if(scriptType == MWEB && node.getKeyPurpose() == KeyPurpose.CHANGE) {
             return 0;
         }
         int lookAheadIndex = getGapLimit() - 1;
@@ -649,6 +649,10 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
 
         if(current != null && current.getIndex() >= index) {
             index = current.getIndex() + 1;
+        }
+
+        if(scriptType == MWEB && keyPurpose == KeyPurpose.CHANGE) {
+            index = 0;
         }
 
         if(index >= node.getChildren().size()) {
@@ -820,6 +824,46 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
     private void getWalletOutputScripts(Map<Script, WalletNode> walletOutputScripts, WalletNode purposeNode) {
         for(WalletNode addressNode : purposeNode.getChildren()) {
             walletOutputScripts.put(addressNode.getOutputScript(), addressNode);
+        }
+    }
+
+    public Map<Sha256Hash, WalletNode> getWalletMwebOutputIds() {
+        return getWalletMwebOutputIds(getWalletKeyPurposes());
+    }
+
+    public Map<Sha256Hash, WalletNode> getWalletMwebOutputIds(KeyPurpose keyPurpose) {
+        if(!getWalletKeyPurposes().contains(keyPurpose)) {
+            return Collections.emptyMap();
+        }
+
+        return getWalletMwebOutputIds(List.of(keyPurpose));
+    }
+
+    private Map<Sha256Hash, WalletNode> getWalletMwebOutputIds(List<KeyPurpose> keyPurposes) {
+        Map<Sha256Hash, WalletNode> walletMwebOutputIds = new LinkedHashMap<>();
+        for(KeyPurpose keyPurpose : keyPurposes) {
+            getWalletMwebOutputIds(walletMwebOutputIds, getNode(keyPurpose));
+        }
+
+        for(Wallet childWallet : getChildWallets()) {
+            if(childWallet.isNested()) {
+                for(KeyPurpose keyPurpose : childWallet.getWalletKeyPurposes()) {
+                    if(keyPurposes.contains(keyPurpose)) {
+                        getWalletMwebOutputIds(walletMwebOutputIds, childWallet.getNode(keyPurpose));
+                    }
+                }
+            }
+        }
+
+        return walletMwebOutputIds;
+    }
+
+    private void getWalletMwebOutputIds(Map<Sha256Hash, WalletNode> walletMwebOutputIds, WalletNode purposeNode) {
+        if(scriptType != MWEB) return;
+        for(WalletNode addressNode : purposeNode.getChildren()) {
+            for(var utxo : addressNode.getUnspentTransactionOutputs()) {
+                walletMwebOutputIds.put(MwebUtils.getOutputId(this, utxo), addressNode);
+            }
         }
     }
 
@@ -1568,6 +1612,7 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
     public Map<PSBTInput, WalletNode> getSigningNodes(PSBT psbt, boolean useDerivationFallback) {
         Map<PSBTInput, WalletNode> signingNodes = new LinkedHashMap<>();
         Map<Script, WalletNode> walletOutputScripts = getWalletOutputScripts();
+        Map<Sha256Hash, WalletNode> walletMwebOutputIds = getWalletMwebOutputIds();
 
         for(PSBTInput psbtInput : psbt.getPsbtInputs()) {
             TransactionOutput utxo = psbtInput.getUtxo();
@@ -1581,6 +1626,13 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
                     signingNode = getSigningNodeFromDerivation(psbtInput, scriptPubKey);
                 }
 
+                if(signingNode != null) {
+                    signingNodes.put(psbtInput, signingNode);
+                }
+            }
+
+            if(psbtInput.isMweb()) {
+                WalletNode signingNode = walletMwebOutputIds.get(psbtInput.getMwebOutputId());
                 if(signingNode != null) {
                     signingNodes.put(psbtInput, signingNode);
                 }
@@ -1740,6 +1792,11 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
             Map<TransactionSignature, Keystore> inputSignatureKeystores = new LinkedHashMap<>();
             for(ECKey signingKey : keystoreKeysForNode.keySet()) {
                 inputSignatureKeystores.put(keySignatureMap.get(signingKey), keystoreKeysForNode.get(signingKey));
+            }
+
+            if(psbtInput.isMweb() && psbtInput.isSigned()) {
+                var keystore = signingWallet.getKeystores().getFirst();
+                psbtInput.getSignatures().forEach(sig -> inputSignatureKeystores.put(sig, keystore));
             }
 
             signedKeystores.put(psbtInput, inputSignatureKeystores);

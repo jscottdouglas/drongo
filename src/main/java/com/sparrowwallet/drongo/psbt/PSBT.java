@@ -86,6 +86,7 @@ public class PSBT {
         this.fallbackLocktime = transaction.getLocktime();
         this.inputCount = (long)transaction.getInputs().size();
         this.outputCount = (long)transaction.getOutputs().size();
+        this.kernelCount = 0L;
 
         for(int i = 0; i < transaction.getInputs().size(); i++) {
             PSBTInput psbtInput = new PSBTInput(this, i);
@@ -238,6 +239,7 @@ public class PSBT {
             this.fallbackLocktime = transaction.getLocktime();
             this.inputCount = (long)psbtInputs.size();
             this.outputCount = (long)psbtOutputs.size();
+            this.kernelCount = 0L;
             this.transaction = null;
         }
     }
@@ -564,6 +566,10 @@ public class PSBT {
                 if(!input.getSilentPaymentsDLEQProofs().isEmpty()) {
                     throw new PSBTParseException("PSBT_IN_SP_DLEQ is not allowed in PSBTv0");
                 }
+            } else if(getPsbtVersion() >= 2 && input.isMweb()) {
+                if(!input.isMwebSane()) {
+                    throw new PSBTParseException("MWEB input is not sane in PSBTv2");
+                }
             } else if(getPsbtVersion() >= 2) {
                 if(input.prevTxid() == null) {
                     throw new PSBTParseException("PSBT_IN_PREV_TXID is required in PSBTv2");
@@ -599,6 +605,13 @@ public class PSBT {
                 }
                 if(output.getSilentPaymentLabel() != null) {
                     throw new PSBTParseException("PSBT_OUT_SP_V0_LABEL is not allowed in PSBTv0");
+                }
+            } else if(getPsbtVersion() >= 2 && output.isMweb()) {
+                if(output.amount() == null) {
+                    throw new PSBTParseException("PSBT_OUT_AMOUNT is required in PSBTv2");
+                }
+                if(!output.isMwebSane()) {
+                    throw new PSBTParseException("MWEB output is not sane in PSBTv2");
                 }
             } else if(getPsbtVersion() >= 2) {
                 if(output.amount() == null) {
@@ -858,6 +871,18 @@ public class PSBT {
             }
         }
 
+        for(PSBTOutput psbtOutput : getPsbtOutputs()) {
+            if(!psbtOutput.isFinalized()) {
+                return false;
+            }
+        }
+
+        for(PSBTKernel psbtKernel : getPsbtKernels()) {
+            if(!psbtKernel.isFinalized()) {
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -913,6 +938,16 @@ public class PSBT {
             }
             for(Map.Entry<ECKey, SilentPaymentsDLEQProof> entry : silentPaymentsDLEQProofs.entrySet()) {
                 entries.add(populateEntry(PSBT_GLOBAL_SP_DLEQ, entry.getKey().getPubKey(), entry.getValue().getBytes()));
+            }
+            if(mwebTxOffset != null) {
+                entries.add(populateEntry(PSBT_GLOBAL_MWEB_TX_OFFSET, null, mwebTxOffset));
+            }
+            if(mwebStealthOffset != null) {
+                entries.add(populateEntry(PSBT_GLOBAL_MWEB_TX_STEALTH_OFFSET, null, mwebStealthOffset));
+            }
+            if(kernelCount != null) {
+                VarInt varIntKernelCount = new VarInt(kernelCount);
+                entries.add(populateEntry(PSBT_GLOBAL_MWEB_KERNEL_COUNT, null, varIntKernelCount.encode()));
             }
         }
 
@@ -971,6 +1006,14 @@ public class PSBT {
             baos.writeBytes(new byte[] {(byte)0x00});
         }
 
+        for(PSBTKernel psbtKernel : getPsbtKernels()) {
+            List<PSBTEntry> kernelEntries = psbtKernel.getKernelEntries(getPsbtVersion());
+            for(PSBTEntry entry : kernelEntries) {
+                entry.serializeToStream(baos);
+            }
+            baos.writeBytes(new byte[] {(byte)0x00});
+        }
+
         return baos.toByteArray();
     }
 
@@ -1008,6 +1051,14 @@ public class PSBT {
         silentPaymentsDLEQProofs.putAll(psbt.silentPaymentsDLEQProofs);
         globalProprietary.putAll(psbt.globalProprietary);
 
+        if(psbt.mwebTxOffset != null) {
+            mwebTxOffset = psbt.mwebTxOffset;
+        }
+
+        if(psbt.mwebStealthOffset != null) {
+            mwebStealthOffset = psbt.mwebStealthOffset;
+        }
+
         for(int i = 0; i < getPsbtInputs().size(); i++) {
             PSBTInput thisInput = getPsbtInputs().get(i);
             PSBTInput otherInput = psbt.getPsbtInputs().get(i);
@@ -1018,6 +1069,12 @@ public class PSBT {
             PSBTOutput thisOutput = getPsbtOutputs().get(i);
             PSBTOutput otherOutput = psbt.getPsbtOutputs().get(i);
             thisOutput.combine(otherOutput);
+        }
+
+        for(int i = 0; i < getPsbtKernels().size(); i++) {
+            PSBTKernel thisKernel = getPsbtKernels().get(i);
+            PSBTKernel otherKernel = psbt.getPsbtKernels().get(i);
+            thisKernel.combine(otherKernel);
         }
     }
 
@@ -1124,6 +1181,10 @@ public class PSBT {
         return psbtOutputs;
     }
 
+    public List<PSBTKernel> getPsbtKernels() {
+        return psbtKernels;
+    }
+
     public Transaction getTransaction() {
         return getTransaction(false);
     }
@@ -1134,7 +1195,15 @@ public class PSBT {
             transaction.setVersion(txVersion);
             transaction.setLocktime(getLocktime(psbtInputs, fallbackLocktime));
             for(PSBTInput psbtInput : getPsbtInputs()) {
-                TransactionInput transactionInput = transaction.addInput(psbtInput.getPrevTxid(), psbtInput.getPrevIndex(), new Script(new byte[0]));
+                Sha256Hash hash;
+                long index = 0;
+                if(psbtInput.isMweb()) {
+                    hash = psbtInput.getMwebOutputId();
+                } else {
+                    hash = psbtInput.getPrevTxid();
+                    index = psbtInput.getPrevIndex();
+                }
+                TransactionInput transactionInput = transaction.addInput(hash, index, new Script(new byte[0]));
                 if(uniqueId) {
                     transactionInput.setSequenceNumber(0);
                 } else {
