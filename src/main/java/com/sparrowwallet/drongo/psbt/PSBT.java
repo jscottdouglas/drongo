@@ -149,6 +149,11 @@ public class PSBT {
             WalletNode walletNode = utxoEntry.getValue();
             Wallet signingWallet = walletNode.getWallet();
 
+            if (signingWallet.getScriptType() == ScriptType.MWEB) {
+                inputIndex--;
+                continue;
+            }
+
             boolean alwaysIncludeNonWitnessTx = signingWallet.getKeystores().stream().anyMatch(keystore -> keystore.getWalletModel().alwaysIncludeNonWitnessUtxo())
                     && !ScriptType.P2TR.equals(signingWallet.getScriptType());
 
@@ -231,8 +236,8 @@ public class PSBT {
         if(this.version >= 2) {
             this.txVersion = transaction.getVersion();
             this.fallbackLocktime = transaction.getLocktime();
-            this.inputCount = (long)transaction.getInputs().size();
-            this.outputCount = (long)transaction.getOutputs().size();
+            this.inputCount = (long)psbtInputs.size();
+            this.outputCount = (long)psbtOutputs.size();
             this.transaction = null;
         }
     }
