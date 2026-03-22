@@ -4,6 +4,8 @@ import com.sparrowwallet.drongo.Utils;
 import com.sparrowwallet.drongo.crypto.ECKey;
 import com.sparrowwallet.drongo.crypto.SchnorrSignature;
 import com.sparrowwallet.drongo.protocol.*;
+import org.bouncycastle.crypto.Digest;
+import org.bouncycastle.crypto.digests.Blake3Digest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -193,5 +195,55 @@ public class PSBTKernel {
 
     public boolean isFinalized() {
         return mwebSignature != null;
+    }
+
+    private void writeVarInt(Digest hash, long n) {
+        byte[] buf = new byte[10];
+        int i = 0;
+        for(;; i++) {
+            buf[i] = (byte)(n & 0x7f);
+            if(i > 0) buf[i] |= (byte)0x80;
+            if(n < 0x80) break;
+            n = (n >> 7) - 1;
+        }
+        for(; i >= 0; i--) {
+            hash.update(buf[i]);
+        }
+    }
+
+    private void updateHash(Digest hash, byte[] arr) {
+        hash.update(arr, 0, arr.length);
+    }
+
+    public Sha256Hash getHash() {
+        Digest hash = new Blake3Digest();
+        hash.update(mwebFeatures);
+        if(mwebFee != null) {
+            writeVarInt(hash, mwebFee);
+        }
+        if(mwebPeginAmount != null) {
+            writeVarInt(hash, mwebPeginAmount);
+        }
+        if(!mwebPegOuts.isEmpty()) {
+            updateHash(hash, new VarInt(mwebPegOuts.size()).encode());
+            mwebPegOuts.forEach(pegOut -> {
+                writeVarInt(hash, pegOut.getValue());
+                updateHash(hash, pegOut.getScriptBytes());
+            });
+        }
+        if(mwebLockHeight != null) {
+            writeVarInt(hash, mwebLockHeight);
+        }
+        if(mwebStealthExcess != null) {
+            updateHash(hash, mwebStealthExcess.getPubKey(true));
+        }
+        if(mwebExtraData != null) {
+            updateHash(hash, mwebExtraData);
+        }
+        updateHash(hash, mwebExcessCommit);
+        updateHash(hash, mwebSignature.encode());
+        byte[] result = new byte[32];
+        hash.doFinal(result, 0);
+        return Sha256Hash.wrap(result);
     }
 }

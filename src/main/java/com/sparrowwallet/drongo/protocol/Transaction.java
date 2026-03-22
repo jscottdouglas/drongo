@@ -35,6 +35,7 @@ public class Transaction extends ChildMessage {
     private long locktime;
     private boolean segwit;
     private int segwitFlag;
+    private byte[] extraData;
 
     private Sha256Hash cachedTxId;
     private Sha256Hash cachedWTxId;
@@ -194,9 +195,13 @@ public class Transaction extends ChildMessage {
     }
 
     public byte[] bitcoinSerialize(boolean useWitnessFormat) {
+        return bitcoinSerialize(useWitnessFormat, false);
+    }
+
+    public byte[] bitcoinSerialize(boolean useWitnessFormat, boolean wire) {
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            bitcoinSerializeToStream(outputStream, useWitnessFormat);
+            bitcoinSerializeToStream(outputStream, useWitnessFormat, wire);
             return outputStream.toByteArray();
         } catch (IOException e) {
             //can't happen
@@ -216,6 +221,10 @@ public class Transaction extends ChildMessage {
      * desired.
      */
     protected void bitcoinSerializeToStream(OutputStream stream, boolean useWitnessFormat) throws IOException {
+        bitcoinSerializeToStream(stream, useWitnessFormat, false);
+    }
+
+    public void bitcoinSerializeToStream(OutputStream stream, boolean useWitnessFormat, boolean wire) throws IOException {
         // version
         uint32ToByteStreamLE(version, stream);
 
@@ -226,6 +235,7 @@ public class Transaction extends ChildMessage {
         }
 
         // txin_count, txins
+        var inputs = wire ? getInputs() : this.inputs;
         stream.write(new VarInt(inputs.size()).encode());
         for(TransactionInput in : inputs) {
             in.bitcoinSerializeToStream(stream);
@@ -247,6 +257,10 @@ public class Transaction extends ChildMessage {
 
                 in.getWitness().bitcoinSerializeToStream(stream);
             }
+        }
+
+        if(extraData != null) {
+            stream.write(extraData);
         }
 
         // lock_time
@@ -276,6 +290,8 @@ public class Transaction extends ChildMessage {
         // script_witnesses
         if (segwit)
             parseWitnesses();
+        extraData = Arrays.copyOfRange(payload, cursor, payload.length - 4);
+        cursor = payload.length - 4;
         // lock_time
         locktime = readUint32();
 
@@ -314,7 +330,7 @@ public class Transaction extends ChildMessage {
     }
 
     public int getSize() {
-        return length;
+        return bitcoinSerialize(isSegwit(), true).length;
     }
 
     public double getVirtualSize() {
@@ -331,6 +347,7 @@ public class Transaction extends ChildMessage {
             wu += 2;
         }
         // txin_count, txins
+        var inputs = getInputs();
         wu += new VarInt(inputs.size()).getSizeInBytes() * WITNESS_SCALE_FACTOR;
         for (TransactionInput in : inputs)
             wu += in.length * WITNESS_SCALE_FACTOR;
@@ -345,6 +362,9 @@ public class Transaction extends ChildMessage {
                     wu += in.getWitness().getLength();
                 }
             }
+        }
+        if(extraData != null) {
+            wu += extraData.length * WITNESS_SCALE_FACTOR;
         }
         // lock_time
         wu += 4 * WITNESS_SCALE_FACTOR;
