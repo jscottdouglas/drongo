@@ -1,5 +1,6 @@
 package com.sparrowwallet.drongo.wallet;
 
+import com.sparrowwallet.drongo.protocol.HashIndex;
 import com.sparrowwallet.drongo.protocol.Sha256Hash;
 
 import java.util.Date;
@@ -28,6 +29,10 @@ public class BlockTransactionHashIndex extends BlockTransactionHash implements C
 
     public long getIndex() {
         return index;
+    }
+
+    public HashIndex getHashIndex() {
+        return new HashIndex(getHash(), index);
     }
 
     public long getValue() {

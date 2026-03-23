@@ -143,6 +143,8 @@ public class Transaction extends ChildMessage {
 
     public void setMwebTxId(Sha256Hash txId) {
         addInput(txId, -1, new Script(List.of()));
+        cachedTxId = null;
+        cachedWTxId = null;
     }
 
     public boolean isSegwit() {
