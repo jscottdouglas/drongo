@@ -106,9 +106,7 @@ public class PSBTOutput {
         //Populate PSBTv2 fields if parent PSBT is v2
         if(psbt.getPsbtVersion() >= 2) {
             this.amount = amount;
-            if(MWEB.isScriptType(script)) {
-                this.mwebStealthAddress = new MwebAddress(MWEB.getHashFromScript(script));
-            } else if(!script.isEmpty() || silentPaymentAddress == null) {
+            if(!script.isEmpty() || silentPaymentAddress == null) {
                 this.script = script;
             }
         }

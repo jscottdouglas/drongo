@@ -10,6 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static com.sparrowwallet.drongo.psbt.PSBTEntry.populateEntry;
@@ -77,7 +78,6 @@ public class PSBTKernel {
                     log.debug("Found kernel mweb pegin amount " + Utils.bytesToHex(entry.getData()));
                     break;
                 case PSBT_KERNEL_MWEB_PEGOUT:
-                    entry.checkOneByteKey();
                     this.mwebPegOuts.add(new TransactionOutput(null, entry.getData(), 0));
                     log.debug("Found kernel mweb pegout " + Utils.bytesToHex(entry.getData()));
                     break;
@@ -191,6 +191,10 @@ public class PSBTKernel {
         if(psbtKernel.mwebSignature != null) {
             mwebSignature = psbtKernel.mwebSignature;
         }
+    }
+
+    public List<TransactionOutput> getPegOuts() {
+        return Collections.unmodifiableList(mwebPegOuts);
     }
 
     public boolean isFinalized() {

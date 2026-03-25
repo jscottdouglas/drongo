@@ -230,7 +230,11 @@ public class PSBT {
             } else {
                 psbtOutput = new PSBTOutput(this, outputIndex, null, txOutput.getValue(), txOutput.getScript(), null, null, Collections.emptyMap(), Collections.emptyMap(), null, null, null);
             }
-            psbtOutputs.add(psbtOutput);
+            var inputsAreMweb = walletTransaction.getWallet().getScriptType() == ScriptType.MWEB;
+            var outputIsMweb = ScriptType.MWEB.isScriptType(txOutput.getScript());
+            if(!inputsAreMweb && !outputIsMweb) {
+                psbtOutputs.add(psbtOutput);
+            }
         }
 
         //Convert to PSBTv2 format
@@ -289,6 +293,15 @@ public class PSBT {
                     case STATE_GLOBALS:
                         currentState = STATE_INPUTS;
                         parseGlobalEntries(globalEntries);
+                        if (inputs == 0) {
+                            currentState = STATE_OUTPUTS;
+                            if (outputs == 0) {
+                                currentState = STATE_KERNELS;
+                                if (kernels == 0) {
+                                    currentState = STATE_END;
+                                }
+                            }
+                        }
                         break;
                     case STATE_INPUTS:
                         inputEntryLists.add(inputEntries);
@@ -298,6 +311,12 @@ public class PSBT {
                         if (seenInputs == inputs) {
                             currentState = STATE_OUTPUTS;
                             parseInputEntries(inputEntryLists);
+                            if (outputs == 0) {
+                                currentState = STATE_KERNELS;
+                                if (kernels == 0) {
+                                    currentState = STATE_END;
+                                }
+                            }
                         }
                         break;
                     case STATE_OUTPUTS:
@@ -308,6 +327,9 @@ public class PSBT {
                         if (seenOutputs == outputs) {
                             currentState = STATE_KERNELS;
                             parseOutputEntries(outputEntryLists);
+                            if (kernels == 0) {
+                                currentState = STATE_END;
+                            }
                         }
                         break;
                     case STATE_KERNELS:
@@ -671,6 +693,12 @@ public class PSBT {
 
         for(PSBTOutput output : psbtOutputs) {
             fee -= output.getAmount();
+        }
+
+        for(PSBTKernel kernel : psbtKernels) {
+            for(var pegOut : kernel.getPegOuts()) {
+                fee -= pegOut.getValue();
+            }
         }
 
         return fee;
@@ -1215,6 +1243,11 @@ public class PSBT {
                     transaction.addOutput(psbtOutput.getAmount(), new Script(List.of(ScriptChunk.fromData(psbtOutput.getSilentPaymentAddress().serialize()))));
                 } else {
                     transaction.addOutput(psbtOutput.getAmount(), psbtOutput.getScript() == null ? new Script(new byte[0]) : psbtOutput.getScript());
+                }
+            }
+            for(PSBTKernel psbtKernel : getPsbtKernels()) {
+                for(var pegOut : psbtKernel.getPegOuts()) {
+                    transaction.addOutput(pegOut.getValue(), pegOut.getScript());
                 }
             }
             return transaction;
