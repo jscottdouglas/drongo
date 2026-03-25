@@ -232,6 +232,7 @@ public class PSBTKernel {
             updateHash(hash, new VarInt(mwebPegOuts.size()).encode());
             mwebPegOuts.forEach(pegOut -> {
                 writeVarInt(hash, pegOut.getValue());
+                updateHash(hash, new VarInt(pegOut.getScriptBytes().length).encode());
                 updateHash(hash, pegOut.getScriptBytes());
             });
         }
