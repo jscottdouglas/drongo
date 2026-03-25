@@ -1282,12 +1282,12 @@ public class PSBTInput {
         ScriptType scriptType = getScriptType();
         if(scriptType == ScriptType.P2TR) {
             List<TransactionOutput> spentUtxos = psbt.getPsbtInputs().stream().map(PSBTInput::getUtxo).collect(Collectors.toList());
-            hash = psbt.getTransaction().hashForTaprootSignature(spentUtxos, index, !P2TR.isScriptType(connectedScript), connectedScript, localSigHash, null);
+            hash = psbt.getTransactionForSigning().hashForTaprootSignature(spentUtxos, index, !P2TR.isScriptType(connectedScript), connectedScript, localSigHash, null);
         } else if(Arrays.asList(WITNESS_TYPES).contains(scriptType)) {
             long prevValue = getUtxo().getValue();
-            hash = psbt.getTransaction().hashForWitnessSignature(index, connectedScript, prevValue, localSigHash);
+            hash = psbt.getTransactionForSigning().hashForWitnessSignature(index, connectedScript, prevValue, localSigHash);
         } else {
-            hash = psbt.getTransaction().hashForLegacySignature(index, connectedScript, localSigHash);
+            hash = psbt.getTransactionForSigning().hashForLegacySignature(index, connectedScript, localSigHash);
         }
 
         return hash;

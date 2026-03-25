@@ -77,6 +77,8 @@ public class PSBT {
     private final List<PSBTOutput> psbtOutputs = new ArrayList<>();
     private final List<PSBTKernel> psbtKernels = new ArrayList<>();
 
+    private Transaction transactionForSigning;
+
     private static final Logger log = LoggerFactory.getLogger(PSBT.class);
 
     public PSBT(Transaction transaction) {
@@ -1254,6 +1256,17 @@ public class PSBT {
         }
 
         return transaction;
+    }
+
+    public Transaction getTransactionForSigning() {
+        if(transactionForSigning != null) {
+            return transactionForSigning;
+        }
+        return getTransaction();
+    }
+
+    public void setTransactionForSigning(Transaction transaction) {
+        transactionForSigning = transaction;
     }
 
     /**
