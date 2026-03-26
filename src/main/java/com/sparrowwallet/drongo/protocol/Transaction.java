@@ -134,10 +134,7 @@ public class Transaction extends ChildMessage {
 
         ByteArrayOutputStream stream = new UnsafeByteArrayOutputStream(length < 32 ? 32 : length + 32);
         try {
-            var extraData = this.extraData;
-            this.extraData = null;
             bitcoinSerializeToStream(stream, useWitnesses);
-            this.extraData = extraData;
         } catch (IOException e) {
             throw new RuntimeException(e); // cannot happen
         }
@@ -268,10 +265,10 @@ public class Transaction extends ChildMessage {
 
                 in.getWitness().bitcoinSerializeToStream(stream);
             }
-        }
 
-        if(extraData != null) {
-            stream.write(extraData);
+            if(extraData != null) {
+                stream.write(extraData);
+            }
         }
 
         // lock_time
