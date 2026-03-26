@@ -134,7 +134,10 @@ public class Transaction extends ChildMessage {
 
         ByteArrayOutputStream stream = new UnsafeByteArrayOutputStream(length < 32 ? 32 : length + 32);
         try {
+            var extraData = this.extraData;
+            this.extraData = null;
             bitcoinSerializeToStream(stream, useWitnesses);
+            this.extraData = extraData;
         } catch (IOException e) {
             throw new RuntimeException(e); // cannot happen
         }
@@ -197,19 +200,25 @@ public class Transaction extends ChildMessage {
     }
 
     public byte[] bitcoinSerialize(boolean useWitnessFormat) {
-        return bitcoinSerialize(useWitnessFormat, false);
-    }
-
-    public byte[] bitcoinSerialize(boolean useWitnessFormat, boolean wire) {
         try {
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-            bitcoinSerializeToStream(outputStream, useWitnessFormat, wire);
+            bitcoinSerializeToStream(outputStream, useWitnessFormat);
             return outputStream.toByteArray();
         } catch (IOException e) {
             //can't happen
         }
 
         return null;
+    }
+
+    public byte[] bitcoinSerializeFull() {
+        try {
+            var outputStream = new ByteArrayOutputStream();
+            bitcoinSerializeToStream(outputStream, isSegwit(), true);
+            return outputStream.toByteArray();
+        } catch (IOException e) {
+            return null;
+        }
     }
 
     public void bitcoinSerializeToStream(OutputStream stream) throws IOException {
@@ -226,7 +235,7 @@ public class Transaction extends ChildMessage {
         bitcoinSerializeToStream(stream, useWitnessFormat, false);
     }
 
-    public void bitcoinSerializeToStream(OutputStream stream, boolean useWitnessFormat, boolean wire) throws IOException {
+    private void bitcoinSerializeToStream(OutputStream stream, boolean useWitnessFormat, boolean full) throws IOException {
         // version
         uint32ToByteStreamLE(version, stream);
 
@@ -237,7 +246,7 @@ public class Transaction extends ChildMessage {
         }
 
         // txin_count, txins
-        var inputs = wire ? getInputs() : this.inputs;
+        var inputs = full ? this.inputs : getInputs();
         stream.write(new VarInt(inputs.size()).encode());
         for(TransactionInput in : inputs) {
             in.bitcoinSerializeToStream(stream);
@@ -292,8 +301,12 @@ public class Transaction extends ChildMessage {
         // script_witnesses
         if (segwit)
             parseWitnesses();
-        extraData = Arrays.copyOfRange(payload, cursor, payload.length - 4);
-        cursor = payload.length - 4;
+        try {
+            extraData = Arrays.copyOfRange(payload, cursor, payload.length - 4);
+            cursor = payload.length - 4;
+        } catch (IllegalArgumentException e) {
+            throw new ProtocolException(e);
+        }
         // lock_time
         locktime = readUint32();
 
@@ -332,7 +345,7 @@ public class Transaction extends ChildMessage {
     }
 
     public int getSize() {
-        return bitcoinSerialize(isSegwit(), true).length;
+        return bitcoinSerialize().length;
     }
 
     public double getVirtualSize() {
