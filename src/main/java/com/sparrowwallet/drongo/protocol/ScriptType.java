@@ -1355,6 +1355,216 @@ public enum ScriptType {
         public List<PolicyType> getAllowedPolicyTypes() {
             return List.of(SINGLE);
         }
+    },
+    MWEB_HOGEX("MWEB HogEx", "MWEB HogEx", "m/1000'") {
+        @Override
+        public Address getAddress(byte[] hash) {
+            return new MwebHogexAddress(hash);
+        }
+
+        @Override
+        public Address getAddress(ECKey key) {
+            throw new ProtocolException("No pubkey derived address for non pay to pubkey type");
+        }
+
+        @Override
+        public Address getAddress(Script script) {
+            throw new ProtocolException("No script derived address for non pay to script type");
+        }
+
+        @Override
+        public Script getOutputScript(byte[] hash) {
+            List<ScriptChunk> chunks = new ArrayList<>();
+            chunks.add(new ScriptChunk(OP_8, null));
+            chunks.add(new ScriptChunk(hash.length, hash));
+
+            return new Script(chunks);
+        }
+
+        @Override
+        public Script getOutputScript(ECKey key) {
+            throw new ProtocolException("No pubkey derived output script for non pay to pubkey type");
+        }
+
+        @Override
+        public Script getOutputScript(Script script) {
+            throw new ProtocolException("No script derived output script for non pay to script type");
+        }
+
+        @Override
+        public String getOutputDescriptor(ECKey key) {
+            throw new ProtocolException("No pubkey derived output descriptor for non pay to pubkey type");
+        }
+
+        @Override
+        public String getOutputDescriptor(Script script) {
+            throw new ProtocolException("No script derived output descriptor for non pay to script type");
+        }
+
+        @Override
+        public String getDescriptor() {
+            return "mweb(";
+        }
+
+        @Override
+        public boolean isScriptType(Script script) {
+            List<ScriptChunk> chunks = script.chunks;
+            if (chunks.size() != 2)
+                return false;
+            if (!chunks.get(0).equalsOpCode(OP_8))
+                return false;
+            byte[] chunk1data = chunks.get(1).data;
+            if (chunk1data == null)
+                return false;
+            if (chunk1data.length != 32)
+                return false;
+            return true;
+        }
+
+        @Override
+        public byte[] getHashFromScript(Script script) {
+            return script.chunks.get(1).data;
+        }
+
+        @Override
+        public Script getScriptSig(Script scriptPubKey, ECKey pubKey, TransactionSignature signature) {
+            if(!isScriptType(scriptPubKey)) {
+                throw new ProtocolException("Provided scriptPubKey is not a " + getName() + " script");
+            }
+
+            return new Script(new byte[0]);
+        }
+
+        @Override
+        public TransactionInput addSpendingInput(Transaction transaction, TransactionOutput prevOutput, ECKey pubKey, TransactionSignature signature) {
+            Script scriptSig = getScriptSig(prevOutput.getScript(), pubKey, signature);
+            return transaction.addInput(prevOutput.getHash(), prevOutput.getIndex(), scriptSig);
+        }
+
+        @Override
+        public Script getMultisigScriptSig(Script scriptPubKey, int threshold, Map<ECKey, TransactionSignature> pubKeySignatures) {
+            throw new ProtocolException(getName() + " is not a multisig script type");
+        }
+
+        @Override
+        public TransactionInput addMultisigSpendingInput(Transaction transaction, TransactionOutput prevOutput, int threshold, Map<ECKey, TransactionSignature> pubKeySignatures) {
+            throw new ProtocolException(getName() + " is not a multisig script type");
+        }
+
+        @Override
+        public TransactionSignature.Type getSignatureType() {
+            return TransactionSignature.Type.ECDSA;
+        };
+
+        @Override
+        public List<PolicyType> getAllowedPolicyTypes() {
+            return List.of(SINGLE);
+        }
+    },
+    MWEB_PEGIN("MWEB PegIn", "MWEB PegIn", "m/1000'") {
+        @Override
+        public Address getAddress(byte[] hash) {
+            return new MwebPeginAddress(hash);
+        }
+
+        @Override
+        public Address getAddress(ECKey key) {
+            throw new ProtocolException("No pubkey derived address for non pay to pubkey type");
+        }
+
+        @Override
+        public Address getAddress(Script script) {
+            throw new ProtocolException("No script derived address for non pay to script type");
+        }
+
+        @Override
+        public Script getOutputScript(byte[] hash) {
+            List<ScriptChunk> chunks = new ArrayList<>();
+            chunks.add(new ScriptChunk(OP_9, null));
+            chunks.add(new ScriptChunk(hash.length, hash));
+
+            return new Script(chunks);
+        }
+
+        @Override
+        public Script getOutputScript(ECKey key) {
+            throw new ProtocolException("No pubkey derived output script for non pay to pubkey type");
+        }
+
+        @Override
+        public Script getOutputScript(Script script) {
+            throw new ProtocolException("No script derived output script for non pay to script type");
+        }
+
+        @Override
+        public String getOutputDescriptor(ECKey key) {
+            throw new ProtocolException("No pubkey derived output descriptor for non pay to pubkey type");
+        }
+
+        @Override
+        public String getOutputDescriptor(Script script) {
+            throw new ProtocolException("No script derived output descriptor for non pay to script type");
+        }
+
+        @Override
+        public String getDescriptor() {
+            return "mweb(";
+        }
+
+        @Override
+        public boolean isScriptType(Script script) {
+            List<ScriptChunk> chunks = script.chunks;
+            if (chunks.size() != 2)
+                return false;
+            if (!chunks.get(0).equalsOpCode(OP_9))
+                return false;
+            byte[] chunk1data = chunks.get(1).data;
+            if (chunk1data == null)
+                return false;
+            if (chunk1data.length != 32)
+                return false;
+            return true;
+        }
+
+        @Override
+        public byte[] getHashFromScript(Script script) {
+            return script.chunks.get(1).data;
+        }
+
+        @Override
+        public Script getScriptSig(Script scriptPubKey, ECKey pubKey, TransactionSignature signature) {
+            if(!isScriptType(scriptPubKey)) {
+                throw new ProtocolException("Provided scriptPubKey is not a " + getName() + " script");
+            }
+
+            return new Script(new byte[0]);
+        }
+
+        @Override
+        public TransactionInput addSpendingInput(Transaction transaction, TransactionOutput prevOutput, ECKey pubKey, TransactionSignature signature) {
+            Script scriptSig = getScriptSig(prevOutput.getScript(), pubKey, signature);
+            return transaction.addInput(prevOutput.getHash(), prevOutput.getIndex(), scriptSig);
+        }
+
+        @Override
+        public Script getMultisigScriptSig(Script scriptPubKey, int threshold, Map<ECKey, TransactionSignature> pubKeySignatures) {
+            throw new ProtocolException(getName() + " is not a multisig script type");
+        }
+
+        @Override
+        public TransactionInput addMultisigSpendingInput(Transaction transaction, TransactionOutput prevOutput, int threshold, Map<ECKey, TransactionSignature> pubKeySignatures) {
+            throw new ProtocolException(getName() + " is not a multisig script type");
+        }
+
+        @Override
+        public TransactionSignature.Type getSignatureType() {
+            return TransactionSignature.Type.ECDSA;
+        };
+
+        @Override
+        public List<PolicyType> getAllowedPolicyTypes() {
+            return List.of(SINGLE);
+        }
     };
 
     private final String name;
@@ -1505,7 +1715,7 @@ public enum ScriptType {
 
     public static final ScriptType[] SINGLE_KEY_TYPES = {P2PK, P2TR};
 
-    public static final ScriptType[] SINGLE_HASH_TYPES = {P2PKH, P2SH, P2SH_P2WPKH, P2SH_P2WSH, P2WPKH, P2WSH, MWEB};
+    public static final ScriptType[] SINGLE_HASH_TYPES = {P2PKH, P2SH, P2SH_P2WPKH, P2SH_P2WSH, P2WPKH, P2WSH, MWEB, MWEB_HOGEX, MWEB_PEGIN};
 
     public static final ScriptType[] ADDRESSABLE_TYPES = {P2PKH, P2SH, P2SH_P2WPKH, P2SH_P2WSH, P2WPKH, P2WSH, P2TR, P2A, MWEB};
 
