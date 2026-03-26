@@ -296,13 +296,18 @@ public class Transaction extends ChildMessage {
         // txout_count, txouts
         parseOutputs();
         // script_witnesses
-        if (segwit)
-            parseWitnesses();
-        try {
-            extraData = Arrays.copyOfRange(payload, cursor, payload.length - 4);
-            cursor = payload.length - 4;
-        } catch (IllegalArgumentException e) {
-            throw new ProtocolException(e);
+        if (segwit) {
+            if ((segwitFlag & 1) > 0) {
+                parseWitnesses();
+            }
+            if ((segwitFlag & 8) > 0) {
+                try {
+                    extraData = Arrays.copyOfRange(payload, cursor, payload.length - 4);
+                    cursor = payload.length - 4;
+                } catch (IllegalArgumentException e) {
+                    throw new ProtocolException(e);
+                }
+            }
         }
         // lock_time
         locktime = readUint32();
