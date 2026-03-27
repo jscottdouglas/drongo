@@ -35,7 +35,7 @@ public class Transaction extends ChildMessage {
     private long locktime;
     private boolean segwit;
     private int segwitFlag;
-    private byte[] extraData;
+    private byte[] mwebData;
 
     private Sha256Hash cachedTxId;
     private Sha256Hash cachedWTxId;
@@ -134,7 +134,7 @@ public class Transaction extends ChildMessage {
 
         ByteArrayOutputStream stream = new UnsafeByteArrayOutputStream(length < 32 ? 32 : length + 32);
         try {
-            bitcoinSerializeToStream(stream, useWitnesses);
+            bitcoinSerializeToStream(stream, useWitnesses, false, false);
         } catch (IOException e) {
             throw new RuntimeException(e); // cannot happen
         }
@@ -211,7 +211,7 @@ public class Transaction extends ChildMessage {
     public byte[] bitcoinSerializeFull() {
         try {
             var outputStream = new ByteArrayOutputStream();
-            bitcoinSerializeToStream(outputStream, isSegwit(), true);
+            bitcoinSerializeToStream(outputStream, isSegwit(), true, true);
             return outputStream.toByteArray();
         } catch (IOException e) {
             return null;
@@ -229,15 +229,17 @@ public class Transaction extends ChildMessage {
      * desired.
      */
     protected void bitcoinSerializeToStream(OutputStream stream, boolean useWitnessFormat) throws IOException {
-        bitcoinSerializeToStream(stream, useWitnessFormat, false);
+        bitcoinSerializeToStream(stream, useWitnessFormat, true, false);
     }
 
-    private void bitcoinSerializeToStream(OutputStream stream, boolean useWitnessFormat, boolean full) throws IOException {
+    private void bitcoinSerializeToStream(OutputStream stream, boolean useWitnessFormat, boolean mweb, boolean full) throws IOException {
         // version
         uint32ToByteStreamLE(version, stream);
 
         // marker, flag
         if(useWitnessFormat) {
+            var segwitFlag = this.segwitFlag;
+            if(!mweb) segwitFlag &= ~8;
             stream.write(0);
             stream.write(segwitFlag);
         }
@@ -257,17 +259,18 @@ public class Transaction extends ChildMessage {
 
         // script_witnesses
         if(useWitnessFormat) {
-            for(TransactionInput in : inputs) {
-                //Per BIP141 all txins must have a witness
-                if(!in.hasWitness()) {
-                    in.setWitness(new TransactionWitness(this));
+            if((segwitFlag & 1) > 0) {
+                for (TransactionInput in : inputs) {
+                    //Per BIP141 all txins must have a witness
+                    if (!in.hasWitness()) {
+                        in.setWitness(new TransactionWitness(this));
+                    }
+
+                    in.getWitness().bitcoinSerializeToStream(stream);
                 }
-
-                in.getWitness().bitcoinSerializeToStream(stream);
             }
-
-            if(extraData != null) {
-                stream.write(extraData);
+            if((segwitFlag & 8) > 0 && mweb) {
+                stream.write(mwebData);
             }
         }
 
@@ -302,7 +305,7 @@ public class Transaction extends ChildMessage {
             }
             if ((segwitFlag & 8) > 0) {
                 try {
-                    extraData = Arrays.copyOfRange(payload, cursor, payload.length - 4);
+                    mwebData = Arrays.copyOfRange(payload, cursor, payload.length - 4);
                     cursor = payload.length - 4;
                 } catch (IllegalArgumentException e) {
                     throw new ProtocolException(e);
@@ -374,14 +377,16 @@ public class Transaction extends ChildMessage {
             wu += out.length * WITNESS_SCALE_FACTOR;
         // script_witnesses
         if(isSegwit()) {
-            for (TransactionInput in : inputs) {
-                if (in.hasWitness()) {
-                    wu += in.getWitness().getLength();
+            if ((segwitFlag & 1) > 0) {
+                for (TransactionInput in : inputs) {
+                    if (in.hasWitness()) {
+                        wu += in.getWitness().getLength();
+                    }
                 }
             }
-        }
-        if(extraData != null) {
-            wu += extraData.length * WITNESS_SCALE_FACTOR;
+            if ((segwitFlag & 8) > 0) {
+                wu += mwebData.length * WITNESS_SCALE_FACTOR;
+            }
         }
         // lock_time
         wu += 4 * WITNESS_SCALE_FACTOR;
