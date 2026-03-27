@@ -1176,6 +1176,13 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
                 outputs.add(new WalletTransaction.NonAddressOutput(output));
             }
 
+            if(scriptType == MWEB && params.getFirstSendMaxPayment().isPresent() &&
+                    txPayments.stream().noneMatch(payment -> payment instanceof WalletNodePayment)) {
+                var node = getFreshNode(getChangeKeyPurpose());
+                var output = transaction.addOutput(0, node.getOutputScript());
+                outputs.add(new WalletTransaction.ChangeOutput(output, node, 0L));
+            }
+
             double noChangeVSize = transaction.getVirtualSize();
             long noChangeFeeRequiredAmt = params.getRequiredFeeAmount(noChangeVSize);
 
