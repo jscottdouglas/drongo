@@ -1486,7 +1486,7 @@ public class PSBT {
         boolean hasSilentPayments = getPsbtOutputs().stream().anyMatch(psbtOutput -> psbtOutput.getSilentPaymentAddress() != null);
 
         //Export as PSBTv0 unless silent payments are present
-        if(!hasSilentPayments && getPsbtVersion() >= 2) {
+        if(!hasSilentPayments && psbtKernels.isEmpty() && getPsbtVersion() >= 2) {
             PSBT psbt0 = this.copy();
             psbt0.convertVersion(0);
             return psbt0;
