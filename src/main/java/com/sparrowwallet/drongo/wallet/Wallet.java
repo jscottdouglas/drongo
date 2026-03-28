@@ -909,11 +909,11 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
     }
 
     public Map<BlockTransactionHashIndex, WalletNode> getSpendableUtxos() {
-        return getWalletTxos(List.of(new SpentTxoFilter(), new FrozenTxoFilter(), new CoinbaseTxoFilter(this)));
+        return getWalletTxos(List.of(new SpentTxoFilter(), new FrozenTxoFilter(), new CoinbaseTxoFilter(this), new MwebPegoutTxoFilter(this)));
     }
 
     public Map<BlockTransactionHashIndex, WalletNode> getSpendableUtxos(BlockTransaction replacedTransaction) {
-        return getWalletTxos(List.of(new SpentTxoFilter(replacedTransaction == null ? null : replacedTransaction.getHash()), new FrozenTxoFilter(), new CoinbaseTxoFilter(this)));
+        return getWalletTxos(List.of(new SpentTxoFilter(replacedTransaction == null ? null : replacedTransaction.getHash()), new FrozenTxoFilter(), new CoinbaseTxoFilter(this), new MwebPegoutTxoFilter(this)));
     }
 
     public Map<BlockTransactionHashIndex, WalletNode> getWalletTxos(Collection<TxoFilter> txoFilters) {

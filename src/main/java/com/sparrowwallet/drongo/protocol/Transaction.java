@@ -21,6 +21,7 @@ public class Transaction extends ChildMessage {
     public static final int WITNESS_SCALE_FACTOR = 4;
     public static final int DEFAULT_SEGWIT_FLAG = 1;
     public static final int COINBASE_MATURITY_THRESHOLD = 100;
+    public static final int PEGOUT_MATURITY_THRESHOLD = 6;
 
     //Min feerate for defining dust, defined in sats/vByte
     //From: https://github.com/bitcoin/bitcoin/blob/0.19/src/policy/policy.h#L50
@@ -498,6 +499,19 @@ public class Transaction extends ChildMessage {
 
     public boolean isCoinBase() {
         return inputs.size() == 1 && inputs.get(0).isCoinBase();
+    }
+
+    public boolean isHogEx() {
+        if (segwit && (segwitFlag & 8) > 0 && mwebData.length == 1 && mwebData[0] == 0) {
+            return true;
+        }
+        if (inputs.isEmpty() || outputs.isEmpty()) {
+            return false;
+        }
+        if (inputs.getFirst().getOutpoint().getIndex() != 0) {
+            return false;
+        }
+        return ScriptType.MWEB_HOGEX.isScriptType(outputs.getFirst().getScript());
     }
 
     public static boolean isTransaction(byte[] bytes) {
