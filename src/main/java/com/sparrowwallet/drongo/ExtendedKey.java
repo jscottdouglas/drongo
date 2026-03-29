@@ -156,6 +156,7 @@ public class ExtendedKey {
         ypub("ypub", 0x049D7CB2, ScriptType.P2SH_P2WPKH, false, true),
         zprv("zprv", 0x04b2430c, ScriptType.P2WPKH, true, true),
         zpub("zpub", 0x04B24746, ScriptType.P2WPKH, false, true),
+        Ltub("Ltub", 0x019da462, ScriptType.P2WPKH, false, true),
         Yprv("Yprv", 0x0295b005, ScriptType.P2SH_P2WSH, true, true),
         Ypub("Ypub", 0x0295b43f, ScriptType.P2SH_P2WSH, false, true),
         Zprv("Zprv", 0x02aa7a99, ScriptType.P2WSH, true, true),
