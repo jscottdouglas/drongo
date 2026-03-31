@@ -1458,7 +1458,7 @@ public enum ScriptType {
 
         @Override
         public List<PolicyType> getAllowedPolicyTypes() {
-            return List.of(SINGLE);
+            return List.of();
         }
     },
     MWEB_PEGIN("MWEB PegIn", "MWEB PegIn", "m/1000'") {
@@ -1563,7 +1563,7 @@ public enum ScriptType {
 
         @Override
         public List<PolicyType> getAllowedPolicyTypes() {
-            return List.of(SINGLE);
+            return List.of();
         }
     };
 
