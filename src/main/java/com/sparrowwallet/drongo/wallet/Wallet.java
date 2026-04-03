@@ -1092,7 +1092,7 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
     public long getCostOfChange(double feeRate, double longTermFeeRate) {
         WalletNode changeNode = getFreshNode(KeyPurpose.CHANGE);
         TransactionOutput changeOutput = new TransactionOutput(new Transaction(), 1L, changeNode.getOutputScript());
-        return getFee(changeOutput, feeRate, longTermFeeRate);
+        return getFee(changeOutput, longTermFeeRate, longTermFeeRate);
     }
 
     public WalletTransaction createWalletTransaction(TransactionParameters params) throws InsufficientFundsException {
