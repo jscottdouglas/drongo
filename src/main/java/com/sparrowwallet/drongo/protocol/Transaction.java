@@ -25,7 +25,7 @@ public class Transaction extends ChildMessage {
 
     //Min feerate for defining dust, defined in sats/vByte
     //From: https://github.com/bitcoin/bitcoin/blob/0.19/src/policy/policy.h#L50
-    public static final double DUST_RELAY_TX_FEE = 3d;
+    public static final double DUST_RELAY_TX_FEE = 30d;
 
     //Default min feerate, defined in sats/vByte
     public static final double DEFAULT_MIN_RELAY_FEE = 1d;
