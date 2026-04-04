@@ -1191,7 +1191,7 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
                 noChangeFeeRequiredAmt++;
             }
 
-            noChangeFeeIncrease += params.feeEstimator().calcFeeIncrease(this, selectedUtxos, outputs, params.feeRate());
+            noChangeFeeIncrease += params.feeEstimator().calcFeeIncrease(this, selectedUtxos, outputs, noChangeVSize, params.feeRate());
             noChangeFeeRequiredAmt += noChangeFeeIncrease;
 
             //If sending all selected utxos, set the recipient amount to equal to total of those utxos less the no change fee
@@ -1253,7 +1253,7 @@ public class Wallet extends Persistable implements Comparable<Wallet> {
                     changeNode = getFreshNode(getChangeKeyPurpose(), changeNode);
                 }
 
-                var feeIncrease = params.feeEstimator().calcFeeIncrease(this, selectedUtxos, outputs, params.feeRate());
+                var feeIncrease = params.feeEstimator().calcFeeIncrease(this, selectedUtxos, outputs, changeVSize, params.feeRate());
                 changeFeeIncrease += feeIncrease;
                 if(feeIncrease > 0) continue;
 
