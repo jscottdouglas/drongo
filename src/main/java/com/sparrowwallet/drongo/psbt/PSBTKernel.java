@@ -133,8 +133,10 @@ public class PSBTKernel {
                 Utils.int64ToByteArrayLE(mwebPeginAmount, bs, 0);
                 entries.add(populateEntry(PSBT_KERNEL_MWEB_PEGIN_AMOUNT, null, bs));
             }
-            for (var pegOut : mwebPegOuts) {
-                entries.add(populateEntry(PSBT_KERNEL_MWEB_PEGOUT, null, pegOut.bitcoinSerialize()));
+            for(int i = 0; i < mwebPegOuts.size(); i++) {
+                var varInt = new VarInt(i);
+                var pegOut = mwebPegOuts.get(i);
+                entries.add(populateEntry(PSBT_KERNEL_MWEB_PEGOUT, varInt.encode(), pegOut.bitcoinSerialize()));
             }
             if(mwebLockHeight != null) {
                 byte[] bs = new byte[4];
